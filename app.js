@@ -72,22 +72,34 @@ function formatRelativeTime(isoString) {
 
 // Funzione helper per ottenere API base (dinamica)
 function getApiBase() {
+    console.log("[getApiBase] Inizio lettura configurazione");
+    
     // 1. Prova a leggere da window.VIEWER_CONFIG (iniettato dal server)
     if (window.VIEWER_CONFIG && window.VIEWER_CONFIG.apiBase) {
+        console.log("[getApiBase] Trovato window.VIEWER_CONFIG.apiBase:", window.VIEWER_CONFIG.apiBase);
         return window.VIEWER_CONFIG.apiBase;
+    } else {
+        console.log("[getApiBase] window.VIEWER_CONFIG non disponibile:", window.VIEWER_CONFIG);
     }
-    // 2. Prova a leggere da CONFIG (fallback)
-    if (CONFIG.apiBase && CONFIG.apiBase.trim() !== '') {
-        return CONFIG.apiBase;
-    }
-    // 3. Prova a leggere da query parameter
+    
+    // 2. Prova a leggere da query parameter
     const urlParams = new URLSearchParams(window.location.search);
     const apiBaseFromUrl = urlParams.get('apiBase');
     if (apiBaseFromUrl) {
+        console.log("[getApiBase] Trovato apiBase da query parameter:", apiBaseFromUrl);
         return apiBaseFromUrl;
     }
+    
+    // 3. Prova a leggere da CONFIG (fallback)
+    if (CONFIG.apiBase && CONFIG.apiBase.trim() !== '') {
+        console.log("[getApiBase] Trovato CONFIG.apiBase:", CONFIG.apiBase);
+        return CONFIG.apiBase;
+    }
+    
     // 4. Fallback: URL processor Railway di default
-    return "https://gioia-processor-production.up.railway.app";
+    const defaultApiBase = "https://gioia-processor-production.up.railway.app";
+    console.log("[getApiBase] Usando default:", defaultApiBase);
+    return defaultApiBase;
 }
 
 // Fetch snapshot from API

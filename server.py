@@ -39,21 +39,30 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             api_base = os.getenv('API_BASE', 'https://gioia-processor-production.up.railway.app')
             
             # Inietta configurazione JavaScript prima della chiusura di </head>
+            # IMPORTANTE: Deve essere PRIMA di app.js per essere disponibile
             config_script = f'''
 <script>
-    // Configurazione iniettata dal server
+    // Configurazione iniettata dal server (deve essere PRIMA di app.js)
     window.VIEWER_CONFIG = {{
         apiBase: "{api_base}"
     }};
+    console.log("[VIEWER_CONFIG] Configurazione iniettata:", window.VIEWER_CONFIG);
 </script>
 '''
             
-            # Inserisci lo script prima di </head>
+            # Inserisci lo script prima di </head> (deve essere prima di app.js)
             if '</head>' in content:
+                # Inserisci prima dell'ultima riga di </head>
                 content = content.replace('</head>', config_script + '</head>')
+            elif '<script' in content:
+                # Se non c'è </head>, inserisci prima del primo script
+                first_script_pos = content.find('<script')
+                content = content[:first_script_pos] + config_script + content[first_script_pos:]
             else:
-                # Se non c'è </head>, inserisci prima di <body>
+                # Ultimo fallback: prima di <body>
                 content = content.replace('<body>', config_script + '<body>')
+            
+            sys.stderr.write(f"[SERVER] Configurazione iniettata: apiBase={api_base}\n")
             
             # Invia risposta
             self.send_response(200)
