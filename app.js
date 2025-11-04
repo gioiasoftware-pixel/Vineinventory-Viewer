@@ -3,20 +3,7 @@ const CONFIG = {
     // Se vuoto, prova a leggere da query parameter ?apiBase=... o usa default
     // Se viewer e processor sono su domini diversi, inserisci qui l'URL del processor:
     // apiBase: "https://gioia-processor-production.up.railway.app",
-    apiBase: (() => {
-        // 1. Prova a leggere da window.VIEWER_CONFIG (iniettato dal server)
-        if (window.VIEWER_CONFIG && window.VIEWER_CONFIG.apiBase) {
-            return window.VIEWER_CONFIG.apiBase;
-        }
-        // 2. Prova a leggere da query parameter
-        const urlParams = new URLSearchParams(window.location.search);
-        const apiBaseFromUrl = urlParams.get('apiBase');
-        if (apiBaseFromUrl) {
-            return apiBaseFromUrl;
-        }
-        // 3. Fallback: URL processor Railway di default
-        return "https://gioia-processor-production.up.railway.app";
-    })(),
+    apiBase: "",  // Ora gestito dinamicamente da getApiBase()
     endpointSnapshot: "/api/inventory/snapshot",
     endpointCsv: "/api/inventory/export.csv",
     pageSize: 50
@@ -83,10 +70,33 @@ function formatRelativeTime(isoString) {
     return `${diffDays} giorni fa`;
 }
 
+// Funzione helper per ottenere API base (dinamica)
+function getApiBase() {
+    // 1. Prova a leggere da window.VIEWER_CONFIG (iniettato dal server)
+    if (window.VIEWER_CONFIG && window.VIEWER_CONFIG.apiBase) {
+        return window.VIEWER_CONFIG.apiBase;
+    }
+    // 2. Prova a leggere da CONFIG (fallback)
+    if (CONFIG.apiBase && CONFIG.apiBase.trim() !== '') {
+        return CONFIG.apiBase;
+    }
+    // 3. Prova a leggere da query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const apiBaseFromUrl = urlParams.get('apiBase');
+    if (apiBaseFromUrl) {
+        return apiBaseFromUrl;
+    }
+    // 4. Fallback: URL processor Railway di default
+    return "https://gioia-processor-production.up.railway.app";
+}
+
 // Fetch snapshot from API
 async function fetchSnapshot(token) {
-    const baseUrl = CONFIG.apiBase || window.location.origin;
+    const baseUrl = getApiBase();
     const url = `${baseUrl}${CONFIG.endpointSnapshot}?token=${encodeURIComponent(token)}`;
+    
+    console.log('🔗 API Base:', baseUrl);
+    console.log('🔗 Full URL:', url);
 
     try {
         const response = await fetch(url);
@@ -336,7 +346,7 @@ function goToPage(page) {
 
 // Setup CSV download
 function setupCsvDownload(token) {
-    const baseUrl = CONFIG.apiBase || window.location.origin;
+    const baseUrl = getApiBase();
     const csvUrl = `${baseUrl}${CONFIG.endpointCsv}?token=${encodeURIComponent(token)}`;
     
     const downloadBtn = document.getElementById('download-csv');
