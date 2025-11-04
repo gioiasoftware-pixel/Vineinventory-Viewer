@@ -1,15 +1,10 @@
 // Configuration
-// IMPORTANTE: apiBase viene letto dinamicamente da getApiBase() per evitare problemi di timing
 const CONFIG = {
-    apiBase: "",  // Ora gestito dinamicamente da getApiBase()
+    apiBase: "",  // se vuoto usa lo stesso dominio del viewer
     endpointSnapshot: "/api/inventory/snapshot",
     endpointCsv: "/api/inventory/export.csv",
     pageSize: 50
 };
-
-// Log configurazione al caricamento
-console.log("[CONFIG] Configurazione caricata:", CONFIG);
-console.log("[CONFIG] window.VIEWER_CONFIG disponibile:", window.VIEWER_CONFIG);
 
 // State
 let allData = {
@@ -51,12 +46,7 @@ const MOCK_DATA = {
     }
 };
 
-// Get view_id or token from URL
-function getViewIdFromURL() {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('view_id') || null;
-}
-
+// Get token from URL
 function getTokenFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('token') || null;
@@ -77,45 +67,10 @@ function formatRelativeTime(isoString) {
     return `${diffDays} giorni fa`;
 }
 
-// Funzione helper per ottenere API base (dinamica)
-function getApiBase() {
-    console.log("[getApiBase] Inizio lettura configurazione");
-    
-    // 1. Prova a leggere da window.VIEWER_CONFIG (iniettato dal server)
-    if (window.VIEWER_CONFIG && window.VIEWER_CONFIG.apiBase) {
-        console.log("[getApiBase] Trovato window.VIEWER_CONFIG.apiBase:", window.VIEWER_CONFIG.apiBase);
-        return window.VIEWER_CONFIG.apiBase;
-    } else {
-        console.log("[getApiBase] window.VIEWER_CONFIG non disponibile:", window.VIEWER_CONFIG);
-    }
-    
-    // 2. Prova a leggere da query parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const apiBaseFromUrl = urlParams.get('apiBase');
-    if (apiBaseFromUrl) {
-        console.log("[getApiBase] Trovato apiBase da query parameter:", apiBaseFromUrl);
-        return apiBaseFromUrl;
-    }
-    
-    // 3. Prova a leggere da CONFIG (fallback)
-    if (CONFIG.apiBase && CONFIG.apiBase.trim() !== '') {
-        console.log("[getApiBase] Trovato CONFIG.apiBase:", CONFIG.apiBase);
-        return CONFIG.apiBase;
-    }
-    
-    // 4. Fallback: URL processor Railway di default
-    const defaultApiBase = "https://gioia-processor-production.up.railway.app";
-    console.log("[getApiBase] Usando default:", defaultApiBase);
-    return defaultApiBase;
-}
-
 // Fetch snapshot from API
 async function fetchSnapshot(token) {
-    const baseUrl = getApiBase();
+    const baseUrl = CONFIG.apiBase || window.location.origin;
     const url = `${baseUrl}${CONFIG.endpointSnapshot}?token=${encodeURIComponent(token)}`;
-    
-    console.log('🔗 API Base:', baseUrl);
-    console.log('🔗 Full URL:', url);
 
     try {
         const response = await fetch(url);
@@ -138,33 +93,9 @@ async function fetchSnapshot(token) {
     }
 }
 
-// Load data (mock, embedded, or from API)
+// Load data (mock or real)
 async function loadData() {
-    // PRIMA: Prova a leggere dati embedded (nuovo flusso)
-    if (window.EMBEDDED_INVENTORY_DATA) {
-        console.log("[LOAD_DATA] Dati embedded trovati, uso quelli");
-        allData = window.EMBEDDED_INVENTORY_DATA;
-        filteredData = [...allData.rows];
-        
-        updateMeta();
-        renderFilters();
-        renderTable();
-        updatePagination();
-        
-        // CSV download: genera da dati embedded
-        setupCsvDownloadEmbedded();
-        return;
-    }
-    
-    // FALLBACK: Vecchio flusso con token
-    const view_id = getViewIdFromURL();
     const token = getTokenFromURL();
-    
-    // Se c'è view_id ma non dati embedded, dati non ancora caricati
-    if (view_id && !window.EMBEDDED_INVENTORY_DATA) {
-        showError("Caricamento dati in corso...");
-        return;
-    }
     
     if (!token) {
         showError("Token mancante nell'URL");
@@ -193,16 +124,6 @@ async function loadData() {
     
     // Setup CSV download link
     setupCsvDownload(token);
-}
-
-// Setup CSV download per dati embedded
-function setupCsvDownloadEmbedded() {
-    const downloadBtn = document.getElementById('download-csv');
-    downloadBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const csv = generateMockCSV();
-        downloadCSV(csv, 'inventario.csv');
-    });
 }
 
 // Show error banner
@@ -399,7 +320,7 @@ function goToPage(page) {
 
 // Setup CSV download
 function setupCsvDownload(token) {
-    const baseUrl = getApiBase();
+    const baseUrl = CONFIG.apiBase || window.location.origin;
     const csvUrl = `${baseUrl}${CONFIG.endpointCsv}?token=${encodeURIComponent(token)}`;
     
     const downloadBtn = document.getElementById('download-csv');
@@ -485,7 +406,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load data
     loadData();
 });
-
-
-
 

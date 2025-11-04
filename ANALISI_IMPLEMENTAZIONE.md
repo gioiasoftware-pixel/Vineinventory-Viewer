@@ -379,4 +379,3 @@ Il progetto è:
 **Data:** 2025-11-03  
 **Status:** Pronto per implementazione (pending decisioni domande aperte)
 
-
