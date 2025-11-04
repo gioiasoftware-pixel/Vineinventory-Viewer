@@ -214,18 +214,29 @@ async def _send_link_to_bot(
         )
         
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
-            async with session.post(url, json=payload) as response:
-                if response.status == 200:
+            try:
+                async with session.post(url, json=payload) as response:
+                    response_text = await response.text()
                     logger.info(
-                        f"[VIEWER_CALLBACK] Link inviato con successo al bot, "
-                        f"telegram_id={telegram_id}, correlation_id={correlation_id}"
+                        f"[VIEWER_CALLBACK] Risposta dal bot: HTTP {response.status}, "
+                        f"response={response_text[:200]}, telegram_id={telegram_id}, correlation_id={correlation_id}"
                     )
-                else:
-                    error_text = await response.text()
-                    logger.error(
-                        f"[VIEWER_CALLBACK] Errore invio link al bot: HTTP {response.status}, "
-                        f"telegram_id={telegram_id}, error={error_text[:200]}"
-                    )
+                    if response.status == 200:
+                        logger.info(
+                            f"[VIEWER_CALLBACK] Link inviato con successo al bot, "
+                            f"telegram_id={telegram_id}, correlation_id={correlation_id}"
+                        )
+                    else:
+                        logger.error(
+                            f"[VIEWER_CALLBACK] Errore invio link al bot: HTTP {response.status}, "
+                            f"telegram_id={telegram_id}, error={response_text[:200]}"
+                        )
+            except Exception as req_error:
+                logger.error(
+                    f"[VIEWER_CALLBACK] Errore richiesta HTTP al bot: {req_error}, "
+                    f"url={url}, telegram_id={telegram_id}, correlation_id={correlation_id}",
+                    exc_info=True
+                )
                     
     except Exception as e:
         logger.error(
