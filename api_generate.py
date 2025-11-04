@@ -223,6 +223,10 @@ async def _send_link_to_bot(
         
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
             try:
+                logger.info(
+                    f"[VIEWER_CALLBACK] Inizio richiesta POST a {url}, "
+                    f"payload keys: {list(payload.keys())}, telegram_id={telegram_id}, correlation_id={correlation_id}"
+                )
                 async with session.post(url, json=payload) as response:
                     response_text = await response.text()
                     logger.info(
@@ -231,17 +235,29 @@ async def _send_link_to_bot(
                     )
                     if response.status == 200:
                         logger.info(
-                            f"[VIEWER_CALLBACK] Link inviato con successo al bot, "
+                            f"[VIEWER_CALLBACK] ✅ Link inviato con successo al bot, "
                             f"telegram_id={telegram_id}, correlation_id={correlation_id}"
                         )
                     else:
                         logger.error(
-                            f"[VIEWER_CALLBACK] Errore invio link al bot: HTTP {response.status}, "
-                            f"telegram_id={telegram_id}, error={response_text[:200]}"
+                            f"[VIEWER_CALLBACK] ❌ Errore invio link al bot: HTTP {response.status}, "
+                            f"telegram_id={telegram_id}, error={response_text[:200]}, correlation_id={correlation_id}"
                         )
+            except asyncio.TimeoutError as timeout_error:
+                logger.error(
+                    f"[VIEWER_CALLBACK] ⏱️ Timeout richiesta HTTP al bot dopo 10s: {timeout_error}, "
+                    f"url={url}, telegram_id={telegram_id}, correlation_id={correlation_id}",
+                    exc_info=True
+                )
+            except aiohttp.ClientError as client_error:
+                logger.error(
+                    f"[VIEWER_CALLBACK] 🔴 Errore client HTTP al bot: {client_error}, "
+                    f"url={url}, telegram_id={telegram_id}, correlation_id={correlation_id}",
+                    exc_info=True
+                )
             except Exception as req_error:
                 logger.error(
-                    f"[VIEWER_CALLBACK] Errore richiesta HTTP al bot: {req_error}, "
+                    f"[VIEWER_CALLBACK] ❌ Errore generico richiesta HTTP al bot: {req_error}, "
                     f"url={url}, telegram_id={telegram_id}, correlation_id={correlation_id}",
                     exc_info=True
                 )
