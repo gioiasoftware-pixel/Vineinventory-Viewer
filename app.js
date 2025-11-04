@@ -1,9 +1,18 @@
 // Configuration
 const CONFIG = {
-    // Se vuoto usa lo stesso dominio del viewer
+    // Se vuoto, prova a leggere da query parameter ?apiBase=... o usa default
     // Se viewer e processor sono su domini diversi, inserisci qui l'URL del processor:
-    // apiBase: "https://gioia-processor.railway.app",
-    apiBase: "",  // Configurare dopo deploy se necessario
+    // apiBase: "https://gioia-processor-production.up.railway.app",
+    apiBase: (() => {
+        // Prova a leggere da query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const apiBaseFromUrl = urlParams.get('apiBase');
+        if (apiBaseFromUrl) {
+            return apiBaseFromUrl;
+        }
+        // URL processor Railway configurato
+        return "https://gioia-processor-production.up.railway.app";
+    })(),
     endpointSnapshot: "/api/inventory/snapshot",
     endpointCsv: "/api/inventory/export.csv",
     pageSize: 50
