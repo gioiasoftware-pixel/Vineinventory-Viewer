@@ -1,13 +1,15 @@
 // Configuration
+// IMPORTANTE: apiBase viene letto dinamicamente da getApiBase() per evitare problemi di timing
 const CONFIG = {
-    // Se vuoto, prova a leggere da query parameter ?apiBase=... o usa default
-    // Se viewer e processor sono su domini diversi, inserisci qui l'URL del processor:
-    // apiBase: "https://gioia-processor-production.up.railway.app",
     apiBase: "",  // Ora gestito dinamicamente da getApiBase()
     endpointSnapshot: "/api/inventory/snapshot",
     endpointCsv: "/api/inventory/export.csv",
     pageSize: 50
 };
+
+// Log configurazione al caricamento
+console.log("[CONFIG] Configurazione caricata:", CONFIG);
+console.log("[CONFIG] window.VIEWER_CONFIG disponibile:", window.VIEWER_CONFIG);
 
 // State
 let allData = {
