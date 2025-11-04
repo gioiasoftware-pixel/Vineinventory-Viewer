@@ -1,0 +1,3 @@
+# Nessuna dipendenza necessaria (Python stdlib)
+# Railway richiede comunque questo file per progetti Python
+
