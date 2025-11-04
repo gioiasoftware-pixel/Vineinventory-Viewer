@@ -133,8 +133,25 @@ async function fetchSnapshot(token) {
     }
 }
 
-// Load data (mock or real)
+// Load data (mock, embedded, or from API)
 async function loadData() {
+    // PRIMA: Prova a leggere dati embedded (nuovo flusso)
+    if (window.EMBEDDED_INVENTORY_DATA) {
+        console.log("[LOAD_DATA] Dati embedded trovati, uso quelli");
+        allData = window.EMBEDDED_INVENTORY_DATA;
+        filteredData = [...allData.rows];
+        
+        updateMeta();
+        renderFilters();
+        renderTable();
+        updatePagination();
+        
+        // CSV download: genera da dati embedded
+        setupCsvDownloadEmbedded();
+        return;
+    }
+    
+    // FALLBACK: Vecchio flusso con token
     const token = getTokenFromURL();
     
     if (!token) {
@@ -164,6 +181,16 @@ async function loadData() {
     
     // Setup CSV download link
     setupCsvDownload(token);
+}
+
+// Setup CSV download per dati embedded
+function setupCsvDownloadEmbedded() {
+    const downloadBtn = document.getElementById('download-csv');
+    downloadBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const csv = generateMockCSV();
+        downloadCSV(csv, 'inventario.csv');
+    });
 }
 
 // Show error banner
