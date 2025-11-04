@@ -3,12 +3,23 @@
 import http.server
 import socketserver
 import os
+import sys
 
 PORT = int(os.getenv("PORT", 8080))
+DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=os.path.dirname(__file__), **kwargs)
+        super().__init__(*args, directory=DIRECTORY, **kwargs)
+    
+    def do_GET(self):
+        """Gestisci richieste GET"""
+        # Se richiesta root, serve index.html
+        if self.path == '/' or self.path == '':
+            self.path = '/index.html'
+        
+        # Serve file statici
+        return super().do_GET()
     
     def end_headers(self):
         # Headers CORS se necessario (per chiamate API)
@@ -23,9 +34,40 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         """Gestisci preflight requests per CORS"""
         self.send_response(200)
         self.end_headers()
+    
+    def log_message(self, format, *args):
+        """Override per logging più pulito"""
+        # Log solo su stderr per Railway
+        sys.stderr.write(f"{self.address_string()} - {format % args}\n")
 
 if __name__ == "__main__":
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        print(f"🍷 Vineinventory Viewer server avviato su porta {PORT}")
-        httpd.serve_forever()
+    # Log su stderr per Railway
+    sys.stderr.write(f"🍷 Vineinventory Viewer server avviato su porta {PORT}\n")
+    sys.stderr.write(f"📁 Directory: {DIRECTORY}\n")
+    sys.stderr.write(f"📄 Index file: {os.path.join(DIRECTORY, 'index.html')}\n")
+    
+    # Verifica che index.html esista
+    index_path = os.path.join(DIRECTORY, 'index.html')
+    if not os.path.exists(index_path):
+        sys.stderr.write(f"❌ ERRORE: index.html non trovato in {index_path}\n")
+        sys.exit(1)
+    
+    sys.stderr.write(f"✅ index.html trovato\n")
+    
+    try:
+        # Permetti riuso indirizzo per evitare "Address already in use"
+        socketserver.TCPServer.allow_reuse_address = True
+        
+        with socketserver.TCPServer(("0.0.0.0", PORT), Handler) as httpd:
+            sys.stderr.write(f"✅ Server pronto su http://0.0.0.0:{PORT}\n")
+            sys.stderr.write(f"🚀 In ascolto su porta {PORT}...\n")
+            httpd.serve_forever()
+    except OSError as e:
+        sys.stderr.write(f"❌ Errore porta {PORT}: {e}\n")
+        sys.exit(1)
+    except Exception as e:
+        sys.stderr.write(f"❌ Errore avvio server: {e}\n")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
