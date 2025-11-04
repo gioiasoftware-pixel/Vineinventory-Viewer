@@ -1,3 +1,4 @@
-# Nessuna dipendenza necessaria (Python stdlib)
-# Railway richiede comunque questo file per progetti Python
+# Dipendenze per API generate
+aiohttp>=3.9.0
+colorlog>=6.8.0
 

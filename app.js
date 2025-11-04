@@ -51,7 +51,12 @@ const MOCK_DATA = {
     }
 };
 
-// Get token from URL
+// Get view_id or token from URL
+function getViewIdFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('view_id') || null;
+}
+
 function getTokenFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('token') || null;
@@ -152,7 +157,14 @@ async function loadData() {
     }
     
     // FALLBACK: Vecchio flusso con token
+    const view_id = getViewIdFromURL();
     const token = getTokenFromURL();
+    
+    // Se c'è view_id ma non dati embedded, dati non ancora caricati
+    if (view_id && !window.EMBEDDED_INVENTORY_DATA) {
+        showError("Caricamento dati in corso...");
+        return;
+    }
     
     if (!token) {
         showError("Token mancante nell'URL");
