@@ -4,13 +4,17 @@ const CONFIG = {
     // Se viewer e processor sono su domini diversi, inserisci qui l'URL del processor:
     // apiBase: "https://gioia-processor-production.up.railway.app",
     apiBase: (() => {
-        // Prova a leggere da query parameter
+        // 1. Prova a leggere da window.VIEWER_CONFIG (iniettato dal server)
+        if (window.VIEWER_CONFIG && window.VIEWER_CONFIG.apiBase) {
+            return window.VIEWER_CONFIG.apiBase;
+        }
+        // 2. Prova a leggere da query parameter
         const urlParams = new URLSearchParams(window.location.search);
         const apiBaseFromUrl = urlParams.get('apiBase');
         if (apiBaseFromUrl) {
             return apiBaseFromUrl;
         }
-        // URL processor Railway configurato
+        // 3. Fallback: URL processor Railway di default
         return "https://gioia-processor-production.up.railway.app";
     })(),
     endpointSnapshot: "/api/inventory/snapshot",
