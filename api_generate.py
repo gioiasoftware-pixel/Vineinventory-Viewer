@@ -31,6 +31,14 @@ PROCESSOR_URL = os.getenv("PROCESSOR_URL", "https://gioia-processor-production.u
 BOT_URL = os.getenv("BOT_URL", "https://gioia-bot-production.up.railway.app")  # URL del bot per callback
 VIEWER_URL = os.getenv("VIEWER_URL", "https://vineinventory-viewer-production.up.railway.app")  # URL del viewer stesso
 
+# Assicura che gli URL abbiano il protocollo
+if PROCESSOR_URL and not PROCESSOR_URL.startswith(("http://", "https://")):
+    PROCESSOR_URL = f"https://{PROCESSOR_URL}"
+if BOT_URL and not BOT_URL.startswith(("http://", "https://")):
+    BOT_URL = f"https://{BOT_URL}"
+if VIEWER_URL and not VIEWER_URL.startswith(("http://", "https://")):
+    VIEWER_URL = f"https://{VIEWER_URL}"
+
 
 async def generate_viewer_html(
     telegram_id: int,
@@ -262,4 +270,3 @@ def get_viewer_html_from_cache(view_id: str) -> tuple[Optional[str], bool]:
         return None, False
     
     return html, True
-
