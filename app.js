@@ -1,6 +1,6 @@
 // Configuration
 const CONFIG = {
-    apiBase: "",  // se vuoto usa lo stesso dominio del viewer
+    apiBase: (window.VIEWER_CONFIG && window.VIEWER_CONFIG.apiBase) || "",
     endpointSnapshot: "/api/inventory/snapshot",
     endpointCsv: "/api/inventory/export.csv",
     pageSize: 50
@@ -20,6 +20,7 @@ let activeFilters = {
     winery: null
 };
 let searchQuery = "";
+let embeddedMode = false;
 
 // Mock data per sviluppo (quando token=FAKE)
 const MOCK_DATA = {
@@ -95,23 +96,30 @@ async function fetchSnapshot(token) {
 
 // Load data (mock or real)
 async function loadData() {
-    const token = getTokenFromURL();
+    const embeddedData = window.EMBEDDED_INVENTORY_DATA || null;
+    let token = getTokenFromURL();
     
-    if (!token) {
+    if (embeddedData) {
+        embeddedMode = true;
+    }
+
+    if (!embeddedMode && !token) {
         showError("Token mancante nell'URL");
         return;
     }
-
+    
     let data;
 
     // Se token è FAKE, usa mock data
-    if (token === "FAKE" || token === "fake") {
+    if (!embeddedMode && (token === "FAKE" || token === "fake")) {
         data = MOCK_DATA;
         // Simula delay
         await new Promise(resolve => setTimeout(resolve, 500));
-    } else {
+    } else if (!embeddedMode) {
         data = await fetchSnapshot(token);
         if (!data) return;
+    } else {
+        data = embeddedData;
     }
 
     allData = data;
@@ -320,26 +328,35 @@ function goToPage(page) {
 
 // Setup CSV download
 function setupCsvDownload(token) {
+    const downloadBtn = document.getElementById('download-csv');
+    
+    if (embeddedMode) {
+        downloadBtn.href = '#';
+        downloadBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const csv = generateMockCSV(allData.rows);
+            downloadCSV(csv, 'inventario.csv');
+        });
+        return;
+    }
+
     const baseUrl = CONFIG.apiBase || window.location.origin;
     const csvUrl = `${baseUrl}${CONFIG.endpointCsv}?token=${encodeURIComponent(token)}`;
-    
-    const downloadBtn = document.getElementById('download-csv');
     downloadBtn.href = csvUrl;
     
     if (token === "FAKE" || token === "fake") {
         downloadBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            // Generate mock CSV
-            const csv = generateMockCSV();
+            const csv = generateMockCSV(allData.rows);
             downloadCSV(csv, 'inventario.csv');
         });
     }
 }
 
 // Generate mock CSV
-function generateMockCSV() {
+function generateMockCSV(rowsData = []) {
     const headers = ['Nome', 'Annata', 'Quantità', 'Prezzo (€)', 'Cantina', 'Tipo'];
-    const rows = allData.rows.map(row => [
+    const rows = rowsData.map(row => [
         row.name || '',
         row.vintage || '',
         row.qty || 0,

@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional
 import aiohttp
 import asyncio
 from logging_config import setup_colored_logging
+from db_utils import fetch_inventory_data_from_db
 
 # Configurazione logging colorato (se non già configurato)
 try:
@@ -27,13 +28,10 @@ _viewer_html_cache = {}
 _cache_expiry_seconds = 3600  # 1 ora
 
 # URL servizi
-PROCESSOR_URL = os.getenv("PROCESSOR_URL", "https://gioia-processor-production.up.railway.app")
 BOT_URL = os.getenv("BOT_URL", "https://gioia-bot-production.up.railway.app")  # URL del bot per callback
 VIEWER_URL = os.getenv("VIEWER_URL", "https://vineinventory-viewer-production.up.railway.app")  # URL del viewer stesso
 
 # Assicura che gli URL abbiano il protocollo
-if PROCESSOR_URL and not PROCESSOR_URL.startswith(("http://", "https://")):
-    PROCESSOR_URL = f"https://{PROCESSOR_URL}"
 if BOT_URL and not BOT_URL.startswith(("http://", "https://")):
     BOT_URL = f"https://{BOT_URL}"
 if VIEWER_URL and not VIEWER_URL.startswith(("http://", "https://")):
@@ -58,14 +56,19 @@ async def generate_viewer_html(
             f"business_name={business_name}, correlation_id={correlation_id}"
         )
         
-        # 1. Chiedi dati al processor
-        processor_data = await _fetch_data_from_processor(telegram_id, correlation_id)
+        # 1. Estrai i dati direttamente dal database
+        processor_data = await asyncio.to_thread(
+            fetch_inventory_data_from_db,
+            telegram_id,
+            business_name,
+            correlation_id,
+        )
         
         if not processor_data:
-            raise Exception("Dati non disponibili dal processor")
+            raise Exception("Dati inventario non disponibili")
         
         logger.info(
-            f"[VIEWER_GENERATE] Dati ricevuti dal processor: rows={len(processor_data.get('rows', []))}, "
+            f"[VIEWER_GENERATE] Dati estratti dal database: rows={len(processor_data.get('rows', []))}, "
             f"telegram_id={telegram_id}, correlation_id={correlation_id}"
         )
         
@@ -103,74 +106,6 @@ async def generate_viewer_html(
             exc_info=True
         )
         raise
-
-
-async def _fetch_data_from_processor(
-    telegram_id: int,
-    correlation_id: Optional[str] = None
-) -> Optional[Dict[str, Any]]:
-    """
-    Chiede dati inventario al processor.
-    Riprova più volte se i dati non sono ancora pronti.
-    """
-    max_retries = 5
-    retry_delay = 2  # secondi
-    
-    for attempt in range(max_retries):
-        try:
-            url = f"{PROCESSOR_URL}/api/viewer/data?telegram_id={telegram_id}"
-            
-            logger.info(
-                f"[VIEWER_FETCH] Tentativo {attempt + 1}/{max_retries}: richiesta dati a processor, "
-                f"url={url}, telegram_id={telegram_id}, correlation_id={correlation_id}"
-            )
-            
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
-                async with session.get(url) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        logger.info(
-                            f"[VIEWER_FETCH] Dati ricevuti dal processor: rows={len(data.get('rows', []))}, "
-                            f"telegram_id={telegram_id}, correlation_id={correlation_id}"
-                        )
-                        return data
-                    elif response.status == 404:
-                        # Dati non ancora pronti
-                        if attempt < max_retries - 1:
-                            logger.warning(
-                                f"[VIEWER_FETCH] Dati non ancora pronti, riprovo tra {retry_delay} secondi "
-                                f"(tentativo {attempt + 1}/{max_retries}), "
-                                f"telegram_id={telegram_id}, correlation_id={correlation_id}"
-                            )
-                            await asyncio.sleep(retry_delay)
-                            continue
-                        else:
-                            logger.error(
-                                f"[VIEWER_FETCH] Dati non disponibili dopo {max_retries} tentativi, "
-                                f"telegram_id={telegram_id}, correlation_id={correlation_id}"
-                            )
-                            return None
-                    else:
-                        error_text = await response.text()
-                        logger.error(
-                            f"[VIEWER_FETCH] Errore richiesta processor: HTTP {response.status}, "
-                            f"telegram_id={telegram_id}, error={error_text[:200]}, "
-                            f"correlation_id={correlation_id}"
-                        )
-                        return None
-                        
-        except Exception as e:
-            logger.error(
-                f"[VIEWER_FETCH] Errore chiamata processor (tentativo {attempt + 1}/{max_retries}): {e}, "
-                f"telegram_id={telegram_id}, correlation_id={correlation_id}",
-                exc_info=True
-            )
-            if attempt < max_retries - 1:
-                await asyncio.sleep(retry_delay)
-            else:
-                return None
-    
-    return None
 
 
 def _generate_html_with_data(data: Dict[str, Any], view_id: str) -> str:
