@@ -100,6 +100,15 @@ def fetch_inventory_data_from_db(
                     selling_price,
                     wine_type,
                     min_quantity,
+                    region,
+                    country,
+                    grape_variety,
+                    classification,
+                    supplier,
+                    cost_price,
+                    alcohol_content,
+                    description,
+                    notes,
                     updated_at
                 FROM {table}
                 WHERE user_id = %s
@@ -134,6 +143,17 @@ def fetch_inventory_data_from_db(
             wine_type = wine.get("wine_type") or "Altro"
             min_quantity = wine.get("min_quantity")
             updated_at = wine.get("updated_at") or last_update
+            region = wine.get("region")
+            country = wine.get("country")
+            grape_variety = wine.get("grape_variety")
+            classification = wine.get("classification")
+            supplier = wine.get("supplier")
+            cost_price_raw = wine.get("cost_price")
+            cost_price = float(cost_price_raw) if cost_price_raw is not None else None
+            alcohol_raw = wine.get("alcohol_content")
+            alcohol = float(alcohol_raw) if alcohol_raw is not None else None
+            description = wine.get("description")
+            notes = wine.get("notes")
 
             row = {
                 "name": name,
@@ -147,6 +167,17 @@ def fetch_inventory_data_from_db(
                     and quantity is not None
                     and quantity <= min_quantity
                 ),
+                "min_qty": min_quantity,
+                "region": region,
+                "country": country,
+                "grape_variety": grape_variety,
+                "classification": classification,
+                "supplier": supplier,
+                "cost_price": cost_price,
+                "alcohol_content": alcohol,
+                "description": description,
+                "notes": notes,
+                "updated_at": updated_at.isoformat() if updated_at else None,
             }
             rows.append(row)
 

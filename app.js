@@ -222,9 +222,13 @@ function applyFilters() {
             const query = searchQuery.toLowerCase();
             const nameMatch = row.name?.toLowerCase().includes(query);
             const wineryMatch = row.winery?.toLowerCase().includes(query);
-            const vintageMatch = String(row.vintage).includes(query);
+            const vintageMatch = String(row.vintage ?? '').includes(query);
+            const regionMatch = row.region?.toLowerCase().includes(query);
+            const countryMatch = row.country?.toLowerCase().includes(query);
+            const grapeMatch = row.grape_variety?.toLowerCase().includes(query);
+            const classificationMatch = row.classification?.toLowerCase().includes(query);
             
-            if (!nameMatch && !wineryMatch && !vintageMatch) {
+            if (!nameMatch && !wineryMatch && !vintageMatch && !regionMatch && !countryMatch && !grapeMatch && !classificationMatch) {
                 return false;
             }
         }
@@ -243,7 +247,7 @@ function renderTable() {
     const tbody = document.getElementById('table-body');
     
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nessun risultato trovato</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Nessun risultato trovato</td></tr>';
         return;
     }
     
@@ -251,15 +255,81 @@ function renderTable() {
     const end = start + CONFIG.pageSize;
     const pageData = filteredData.slice(start, end);
     
-    tbody.innerHTML = pageData.map(row => `
-        <tr>
-            <td>${escapeHtml(row.name || '-')}</td>
-            <td>${row.vintage || '-'}</td>
-            <td>${row.qty || 0}</td>
-            <td>€${(row.price || 0).toFixed(2)}</td>
-            <td>${row.critical || row.qty <= 3 ? '<span class="critical-badge">Critica</span>' : '-'}</td>
-        </tr>
+    let html = '';
+    pageData.forEach((row, idx) => {
+        const rowIndex = start + idx;
+        html += `
+            <tr class="data-row" data-index="${rowIndex}">
+                <td>${escapeHtml(row.name || '-')}</td>
+                <td>${escapeHtml(row.winery || '-')}</td>
+                <td>${escapeHtml(row.type || '-')}</td>
+                <td>${row.vintage || '-'}</td>
+                <td>${row.qty ?? 0}</td>
+                <td>${formatCurrency(row.price)}</td>
+                <td>${escapeHtml(row.region || '-')}</td>
+                <td>${escapeHtml(row.country || '-')}</td>
+            </tr>
+        `;
+        html += generateDetailsRow(row, rowIndex);
+    });
+    
+    tbody.innerHTML = html;
+    setupRowDetails();
+}
+
+function generateDetailsRow(row, index) {
+    const detailItems = [];
+    
+    const addDetail = (label, value, formatter = (v) => v) => {
+        if (value !== null && value !== undefined && value !== '' && value !== '-') {
+            detailItems.push({ label, value: formatter(value) });
+        }
+    };
+    
+    addDetail('Costo (€)', row.cost_price, formatCurrency);
+    addDetail('Fornitore', row.supplier, escapeHtml);
+    addDetail('Scorta minima', row.min_qty, (v) => v);
+    addDetail('Uvaggio', row.grape_variety, escapeHtml);
+    addDetail('Classificazione', row.classification, escapeHtml);
+    addDetail('Gradazione', row.alcohol_content, formatAlcohol);
+    addDetail('Descrizione', row.description, escapeHtml);
+    addDetail('Note', row.notes, escapeHtml);
+    addDetail('Ultimo aggiornamento', row.updated_at, formatDateTime);
+    
+    if (detailItems.length === 0) {
+        return '';
+    }
+    
+    const detailHtml = detailItems.map(item => `
+        <div class="detail-item">
+            <span class="detail-label">${item.label}</span>
+            <span class="detail-value">${item.value}</span>
+        </div>
     `).join('');
+    
+    return `
+        <tr class="details-row hidden" data-details="${index}">
+            <td colspan="8">
+                <div class="details-grid">
+                    ${detailHtml}
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+function setupRowDetails() {
+    const rows = document.querySelectorAll('.data-row');
+    rows.forEach(row => {
+        row.addEventListener('click', () => {
+            const index = row.dataset.index;
+            const detailRow = document.querySelector(`.details-row[data-details="${index}"]`);
+            if (detailRow) {
+                detailRow.classList.toggle('hidden');
+                row.classList.toggle('expanded');
+            }
+        });
+    });
 }
 
 // Update pagination
@@ -355,22 +425,54 @@ function setupCsvDownload(token) {
 
 // Generate mock CSV
 function generateMockCSV(rowsData = []) {
-    const headers = ['Nome', 'Annata', 'Quantità', 'Prezzo (€)', 'Cantina', 'Tipo'];
+    const headers = ['Nome', 'Cantina', 'Tipologia', 'Annata', 'Quantità', 'Prezzo (€)', 'Regione', 'Paese', 'Costo (€)', 'Fornitore', 'Scorta minima', 'Uvaggio', 'Classificazione', 'Gradazione', 'Descrizione', 'Note', 'Ultimo aggiornamento'];
     const rows = rowsData.map(row => [
         row.name || '',
+        row.winery || '',
+        row.type || '',
         row.vintage || '',
         row.qty || 0,
         row.price || 0,
-        row.winery || '',
-        row.type || ''
+        row.region || '',
+        row.country || '',
+        row.cost_price || '',
+        row.supplier || '',
+        row.min_qty || '',
+        row.grape_variety || '',
+        row.classification || '',
+        row.alcohol_content || '',
+        row.description || '',
+        row.notes || '',
+        row.updated_at || ''
     ]);
     
     const csvRows = [headers.join(',')];
     rows.forEach(row => {
-        csvRows.push(row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','));
+        csvRows.push(row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','));
     });
     
     return csvRows.join('\n');
+}
+
+function formatCurrency(value) {
+    if (value === null || value === undefined || value === '') return '-';
+    const number = Number(value);
+    if (Number.isNaN(number)) return '-';
+    return `€${number.toFixed(2)}`;
+}
+
+function formatAlcohol(value) {
+    if (value === null || value === undefined || value === '') return '-';
+    const number = Number(value);
+    if (Number.isNaN(number)) return '-';
+    return `${number.toFixed(1)}%`;
+}
+
+function formatDateTime(value) {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString();
 }
 
 // Download CSV
