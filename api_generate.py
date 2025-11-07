@@ -87,10 +87,14 @@ async def generate_viewer_html(
         # 4. Genera URL viewer
         viewer_url = f"{VIEWER_URL}/?view_id={view_id}"
         
-        # 5. Invia link al bot (async, non blocca)
-        asyncio.create_task(
-            _send_link_to_bot(telegram_id, viewer_url, correlation_id)
-        )
+        # 5. Invia link al bot (attende completamento per evitare chiusura loop)
+        try:
+            await _send_link_to_bot(telegram_id, viewer_url, correlation_id)
+        except Exception as cb_error:
+            logger.error(
+                f"[VIEWER_CALLBACK] Errore nell'invio del link al bot: {cb_error}",
+                exc_info=True
+            )
         
         return {
             "status": "completed",
