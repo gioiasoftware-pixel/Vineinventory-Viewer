@@ -502,28 +502,31 @@ body {
 .chart-action-cell {
     text-align: center;
     padding: 12px 8px;
+    width: 80px;
 }
 
 .chart-btn {
     background: var(--color-light-gray);
-    border: 1px solid var(--color-border);
+    border: 2px solid var(--color-border);
     cursor: pointer;
-    padding: 8px;
+    padding: 10px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     color: var(--color-text-primary);
     transition: all 0.2s;
-    border-radius: 6px;
-    min-width: 40px;
-    min-height: 40px;
+    border-radius: 8px;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto;
 }
 
 .chart-btn:hover {
     color: var(--color-white);
     background-color: var(--color-granaccia);
     border-color: var(--color-granaccia);
-    transform: scale(1.05);
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(154, 24, 46, 0.3);
 }
 
 .chart-btn:active {
@@ -534,5 +537,6 @@ body {
     display: block;
     width: 24px;
     height: 24px;
+    pointer-events: none;
 }
 
