@@ -206,10 +206,12 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
                 producer_normalized = wine['producer'].strip()
                 facets["winery"][producer_normalized] = facets["winery"].get(producer_normalized, 0) + 1
             
-            # Fornitore (supplier)
+            # Fornitore (supplier) - normalizza per evitare duplicati
             if wine['supplier']:
                 supplier_normalized = wine['supplier'].strip()
-                facets["supplier"][supplier_normalized] = facets["supplier"].get(supplier_normalized, 0) + 1
+                # Escludi valori vuoti o placeholder
+                if supplier_normalized and supplier_normalized not in ("-", "", "null", "None"):
+                    facets["supplier"][supplier_normalized] = facets["supplier"].get(supplier_normalized, 0) + 1
         
         # Meta info
         last_update = None

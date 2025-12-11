@@ -201,9 +201,23 @@ function renderFilters() {
 
 function renderFilterSection(filterType, facets) {
     const container = document.getElementById(`filter-${filterType}`);
+    if (!container) {
+        console.warn(`[VIEWER] Container filter-${filterType} non trovato`);
+        return;
+    }
     container.innerHTML = '';
 
-    const sortedFacets = Object.entries(facets)
+    // Filtra facets vuoti o placeholder (solo per supplier)
+    const filteredFacets = filterType === 'supplier' 
+        ? Object.entries(facets).filter(([key]) => key && key !== "-" && key !== "" && key !== "null" && key !== "None")
+        : Object.entries(facets);
+
+    if (filteredFacets.length === 0) {
+        container.innerHTML = '<div class="filter-item" style="opacity: 0.5; font-style: italic;">Nessun dato disponibile</div>';
+        return;
+    }
+
+    const sortedFacets = filteredFacets
         .sort((a, b) => b[1] - a[1]); // Sort by count desc
 
     sortedFacets.forEach(([key, count]) => {
