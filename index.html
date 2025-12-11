@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <!-- Banner Error (hidden by default) -->
@@ -125,6 +126,21 @@
                 <!-- Popolato dinamicamente -->
             </div>
         </main>
+    </div>
+
+    <!-- Modal per grafico movimenti -->
+    <div id="movements-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-wine-name">Movimenti Vino</h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="movements-chart-container">
+                    <canvas id="movements-chart"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Script di configurazione deve essere caricato PRIMA di app.js -->

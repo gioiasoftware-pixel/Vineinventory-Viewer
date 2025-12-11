@@ -269,3 +269,81 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
         if conn:
             await conn.close()
 
+
+async def get_wine_movements(telegram_id: int, business_name: str, wine_name: str) -> List[Dict[str, Any]]:
+    """
+    Recupera movimenti (consumi e rifornimenti) per un vino specifico.
+    
+    Args:
+        telegram_id: ID Telegram utente
+        business_name: Nome business
+        wine_name: Nome del vino
+        
+    Returns:
+        Lista di movimenti con date e quantità
+    """
+    conn = None
+    try:
+        if not DATABASE_URL:
+            raise ValueError("DATABASE_URL non configurata")
+        
+        conn = await asyncpg.connect(DATABASE_URL)
+        
+        # Trova user_id
+        user_row = await conn.fetchrow(
+            "SELECT id FROM users WHERE telegram_id = $1",
+            telegram_id
+        )
+        
+        if not user_row:
+            logger.warning(f"[VIEWER_DB] Utente {telegram_id} non trovato")
+            return []
+        
+        user_id = user_row['id']
+        
+        # Nome tabella consumi
+        table_consumi = f'"{telegram_id}/{business_name} Consumi e rifornimenti"'
+        
+        # Query movimenti per questo vino
+        movements_rows = await conn.fetch(
+            f"""
+            SELECT 
+                movement_type,
+                quantity_change,
+                quantity_before,
+                quantity_after,
+                movement_date
+            FROM {table_consumi}
+            WHERE user_id = $1
+            AND wine_name = $2
+            ORDER BY movement_date ASC
+            """,
+            user_id,
+            wine_name
+        )
+        
+        # Formatta movimenti
+        movements = []
+        for mov in movements_rows:
+            movements.append({
+                "date": mov['movement_date'].isoformat() if mov['movement_date'] else None,
+                "type": mov['movement_type'],  # 'consumo' o 'rifornimento'
+                "quantity_change": mov['quantity_change'],
+                "quantity_before": mov['quantity_before'],
+                "quantity_after": mov['quantity_after']
+            })
+        
+        logger.info(
+            f"[VIEWER_DB] Movimenti recuperati per vino '{wine_name}': "
+            f"count={len(movements)}, telegram_id={telegram_id}"
+        )
+        
+        return movements
+        
+    except Exception as e:
+        logger.error(f"[VIEWER_DB] Errore recupero movimenti: {e}", exc_info=True)
+        raise
+    finally:
+        if conn:
+            await conn.close()
+

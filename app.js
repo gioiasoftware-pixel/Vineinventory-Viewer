@@ -4,8 +4,12 @@ let CONFIG = {
     apiBase: "",  // Vuoto = stesso dominio del viewer (endpoint locale)
     endpointSnapshot: "/api/inventory/snapshot",
     endpointCsv: "/api/inventory/export.csv",
+    endpointMovements: "/api/inventory/movements",
     pageSize: 50
 };
+
+// Chart instance
+let movementsChart = null;
 
 console.log("[VIEWER] ✅ Configurazione: viewer gestisce tutto autonomamente");
 console.log("[VIEWER] ✅ Endpoint locale:", CONFIG.endpointSnapshot);
@@ -335,14 +339,25 @@ function renderTable() {
     const pageData = filteredData.slice(start, end);
     
     tbody.innerHTML = pageData.map(row => `
-        <tr>
-            <td>${escapeHtml(row.name || '-')}</td>
+        <tr class="wine-row" data-wine-name="${escapeHtml(row.name || '')}">
+            <td class="wine-name-cell">${escapeHtml(row.name || '-')}</td>
             <td>${row.vintage || '-'}</td>
             <td>${row.qty || 0}</td>
             <td>€${(row.price || 0).toFixed(2)}</td>
             <td>${row.critical || row.qty <= 3 ? '<span class="critical-badge">Critica</span>' : '-'}</td>
         </tr>
     `).join('');
+    
+    // Aggiungi event listener per click sulle righe
+    document.querySelectorAll('.wine-row').forEach(row => {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', (e) => {
+            const wineName = row.dataset.wineName;
+            if (wineName) {
+                showMovementsChart(wineName);
+            }
+        });
+    });
 }
 
 // Update pagination
@@ -482,6 +497,151 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Close modal
+function closeMovementsModal() {
+    const modal = document.getElementById('movements-modal');
+    modal.classList.add('hidden');
+}
+
+// Show movements chart modal
+async function showMovementsChart(wineName) {
+    const token = getTokenFromURL();
+    if (!token) {
+        alert('Token non valido');
+        return;
+    }
+    
+    const modal = document.getElementById('movements-modal');
+    const modalTitle = document.getElementById('modal-wine-name');
+    const chartContainer = document.getElementById('movements-chart-container');
+    
+    modalTitle.textContent = `Movimenti: ${wineName}`;
+    modal.classList.remove('hidden');
+    
+    // Mostra loading
+    chartContainer.innerHTML = '<div class="loading">Caricamento movimenti...</div>';
+    
+    try {
+        const baseUrl = CONFIG.apiBase || window.location.origin;
+        const url = `${baseUrl}${CONFIG.endpointMovements}?token=${encodeURIComponent(token)}&wine_name=${encodeURIComponent(wineName)}`;
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const movements = data.movements || [];
+        
+        if (movements.length === 0) {
+            chartContainer.innerHTML = '<div class="empty-state">Nessun movimento trovato per questo vino</div>';
+            return;
+        }
+        
+        // Prepara dati per grafico
+        const labels = [];
+        const consumiData = [];
+        const rifornimentiData = [];
+        const quantitaData = [];
+        
+        movements.forEach(mov => {
+            const date = new Date(mov.date);
+            labels.push(date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }));
+            
+            if (mov.type === 'consumo') {
+                consumiData.push(Math.abs(mov.quantity_change));
+                rifornimentiData.push(null);
+            } else {
+                consumiData.push(null);
+                rifornimentiData.push(mov.quantity_change);
+            }
+            
+            quantitaData.push(mov.quantity_after);
+        });
+        
+        // Crea grafico
+        chartContainer.innerHTML = '<canvas id="movements-chart"></canvas>';
+        const ctx = document.getElementById('movements-chart').getContext('2d');
+        
+        // Distruggi grafico precedente se esiste
+        if (movementsChart) {
+            movementsChart.destroy();
+        }
+        
+        movementsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Consumi',
+                        data: consumiData,
+                        borderColor: '#9a182e',
+                        backgroundColor: 'rgba(154, 24, 46, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Rifornimenti',
+                        data: rifornimentiData,
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Quantità Stock',
+                        data: quantitaData,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.4,
+                        fill: false,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Bottiglie (Consumi/Rifornimenti)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Stock'
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('[VIEWER] Errore caricamento movimenti:', error);
+        chartContainer.innerHTML = `<div class="error-state">Errore nel caricamento dei movimenti: ${error.message}</div>`;
+    }
+}
+
 // Filter section toggle
 document.addEventListener('DOMContentLoaded', () => {
     // Setup filter section toggles
@@ -502,6 +662,35 @@ document.addEventListener('DOMContentLoaded', () => {
     
     searchInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            searchQuery = e.target.value.trim();
+            applyFilters();
+        }, 300); // Debounce 300ms
+    });
+    
+    // Event listeners per modal
+    const modal = document.getElementById('movements-modal');
+    const closeBtn = document.getElementById('modal-close');
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeMovementsModal);
+    }
+    
+    // Chiudi modal cliccando fuori
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeMovementsModal();
+            }
+        });
+    }
+    
+    // Chiudi con ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+            closeMovementsModal();
+        }
+    });
         searchTimeout = setTimeout(() => {
             searchQuery = e.target.value.trim();
             applyFilters();

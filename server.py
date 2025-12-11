@@ -35,6 +35,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.handle_csv_export_endpoint()
             return
         
+        # Endpoint API movimenti vino
+        if parsed_path.path == '/api/inventory/movements':
+            self.handle_movements_endpoint()
+            return
+        
         # Endpoint API per generazione viewer
         if parsed_path.path == '/api/generate':
             self.handle_generate_endpoint()
@@ -338,6 +343,70 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 
         except Exception as e:
             logger.error(f"[VIEWER_API] Errore snapshot: {e}", exc_info=True)
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"detail": f"Errore interno: {str(e)}"}).encode('utf-8'))
+    
+    def handle_movements_endpoint(self):
+        """Gestisci endpoint GET /api/inventory/movements"""
+        try:
+            parsed_path = urlparse(self.path)
+            query_params = parse_qs(parsed_path.query)
+            token = query_params.get('token', [None])[0]
+            wine_name = query_params.get('wine_name', [None])[0]
+            
+            if not token:
+                self.send_error(400, "Token mancante")
+                return
+            
+            if not wine_name:
+                self.send_error(400, "wine_name mancante")
+                return
+            
+            logger.info(f"[VIEWER_API] Richiesta movimenti per vino '{wine_name}', token_length={len(token)}")
+            
+            # Importa e valida token
+            from viewer_db import validate_viewer_token, get_wine_movements
+            
+            token_data = validate_viewer_token(token)
+            if not token_data:
+                logger.warning(f"[VIEWER_API] Token JWT non valido o scaduto")
+                self.send_response(401)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"detail": "Token scaduto o non valido"}).encode('utf-8'))
+                return
+            
+            telegram_id = token_data["telegram_id"]
+            business_name = token_data["business_name"]
+            
+            logger.info(
+                f"[VIEWER_API] Movimenti richiesti per vino '{wine_name}', "
+                f"telegram_id={telegram_id}, business_name={business_name}"
+            )
+            
+            # Recupera movimenti dal database
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                movements = loop.run_until_complete(
+                    get_wine_movements(telegram_id, business_name, wine_name)
+                )
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"movements": movements}).encode('utf-8'))
+                
+                logger.info(
+                    f"[VIEWER_API] Movimenti restituiti con successo: count={len(movements)}"
+                )
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            logger.error(f"[VIEWER_API] Errore movimenti: {e}", exc_info=True)
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
