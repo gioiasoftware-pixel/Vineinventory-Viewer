@@ -338,8 +338,11 @@ function renderTable() {
     const end = start + CONFIG.pageSize;
     const pageData = filteredData.slice(start, end);
     
-    tbody.innerHTML = pageData.map(row => {
+    console.log('[RENDER_TABLE] Rendering', pageData.length, 'righe');
+    
+    tbody.innerHTML = pageData.map((row, index) => {
         const wineName = escapeHtml(row.name || '');
+        console.log(`[RENDER_TABLE] Riga ${index}: wineName="${wineName}"`);
         return `
         <tr>
             <td class="wine-name-cell">${wineName || '-'}</td>
@@ -360,11 +363,17 @@ function renderTable() {
         `;
     }).join('');
     
+    // Debug: verifica che i pulsanti siano stati creati
+    const buttons = document.querySelectorAll('.chart-btn');
+    console.log('[RENDER_TABLE] Pulsanti trovati:', buttons.length);
+    
     // Aggiungi event listener per click sui pulsanti grafico
-    document.querySelectorAll('.chart-btn').forEach(btn => {
+    buttons.forEach((btn, index) => {
+        console.log(`[RENDER_TABLE] Aggiungo listener a pulsante ${index}, wineName="${btn.dataset.wineName}"`);
         btn.addEventListener('click', (e) => {
             e.stopPropagation(); // Evita propagazione eventi
             const wineName = btn.dataset.wineName;
+            console.log('[CHART_BTN] Click su pulsante, wineName:', wineName);
             if (wineName) {
                 showMovementsChart(wineName);
             }

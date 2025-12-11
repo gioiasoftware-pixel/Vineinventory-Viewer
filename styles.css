@@ -501,30 +501,33 @@ body {
 /* Chart button */
 .chart-action-cell {
     text-align: center;
-    padding: 12px 8px;
+    padding: 12px 8px !important;
     width: 80px;
+    min-width: 80px;
+    background-color: var(--color-white) !important;
 }
 
 .chart-btn {
-    background: var(--color-light-gray);
-    border: 2px solid var(--color-border);
+    background: var(--color-light-gray) !important;
+    border: 2px solid var(--color-border) !important;
     cursor: pointer;
-    padding: 10px;
-    display: inline-flex;
+    padding: 10px !important;
+    display: inline-flex !important;
     align-items: center;
     justify-content: center;
-    color: var(--color-text-primary);
+    color: var(--color-text-primary) !important;
     transition: all 0.2s;
     border-radius: 8px;
-    width: 48px;
-    height: 48px;
+    width: 48px !important;
+    height: 48px !important;
     margin: 0 auto;
+    box-sizing: border-box;
 }
 
 .chart-btn:hover {
-    color: var(--color-white);
-    background-color: var(--color-granaccia);
-    border-color: var(--color-granaccia);
+    color: var(--color-white) !important;
+    background-color: var(--color-granaccia) !important;
+    border-color: var(--color-granaccia) !important;
     transform: scale(1.1);
     box-shadow: 0 2px 8px rgba(154, 24, 46, 0.3);
 }
@@ -534,9 +537,11 @@ body {
 }
 
 .chart-btn svg {
-    display: block;
-    width: 24px;
-    height: 24px;
+    display: block !important;
+    width: 24px !important;
+    height: 24px !important;
     pointer-events: none;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
