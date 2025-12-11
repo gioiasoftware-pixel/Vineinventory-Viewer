@@ -15,6 +15,18 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me-in-production-secret-key-2025")
 JWT_ALGORITHM = "HS256"
 
+# Verifica configurazione all'avvio
+if not DATABASE_URL:
+    logger.error("[VIEWER_DB] ❌ DATABASE_URL non configurata! Il viewer non funzionerà.")
+    logger.error("[VIEWER_DB] Configura DATABASE_URL su Railway → Settings → Variables")
+
+if not JWT_SECRET_KEY or JWT_SECRET_KEY == "change-me-in-production-secret-key-2025":
+    logger.warning("[VIEWER_DB] ⚠️ JWT_SECRET_KEY non configurata o default!")
+    logger.warning("[VIEWER_DB] ⚠️ Configura JWT_SECRET_KEY su Railway → Settings → Variables")
+    logger.warning("[VIEWER_DB] ⚠️ Deve essere la STESSA chiave del bot!")
+else:
+    logger.info("[VIEWER_DB] ✅ JWT_SECRET_KEY configurata correttamente")
+
 
 def validate_viewer_token(token: str) -> Optional[Dict[str, Any]]:
     """
