@@ -25,6 +25,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         """Gestisci richieste GET"""
         parsed_path = urlparse(self.path)
         
+        # Endpoint API snapshot inventario (gestito direttamente dal viewer)
+        if parsed_path.path == '/api/inventory/snapshot':
+            self.handle_snapshot_endpoint()
+            return
+        
         # Endpoint API per generazione viewer
         if parsed_path.path == '/api/generate':
             self.handle_generate_endpoint()

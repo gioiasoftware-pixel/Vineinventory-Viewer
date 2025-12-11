@@ -1,25 +1,14 @@
 // Configuration
-// Leggi configurazione iniettata dal server se disponibile
-// IMPORTANTE: window.VIEWER_CONFIG viene iniettato dal server.py PRIMA di questo script
-
-// FORCE API BASE - Fallback hardcoded se configurazione non disponibile
-const DEFAULT_API_BASE = "https://gioia-processor-production.up.railway.app";
-
+// Il viewer gestisce tutto autonomamente - chiama direttamente il database
 let CONFIG = {
-    apiBase: DEFAULT_API_BASE,  // Default: processor URL hardcoded come fallback
+    apiBase: "",  // Vuoto = stesso dominio del viewer (endpoint locale)
     endpointSnapshot: "/api/inventory/snapshot",
     endpointCsv: "/api/inventory/export.csv",
     pageSize: 50
 };
 
-// Se configurazione è stata iniettata dal server, usala (ha priorità)
-if (window.VIEWER_CONFIG && window.VIEWER_CONFIG.apiBase) {
-    CONFIG.apiBase = window.VIEWER_CONFIG.apiBase;
-    console.log("[VIEWER] ✅ Configurazione API dal server:", CONFIG);
-} else {
-    console.warn("[VIEWER] ⚠️ window.VIEWER_CONFIG non trovato - usando fallback hardcoded:", CONFIG);
-    console.warn("[VIEWER] ⚠️ Questo non dovrebbe succedere in produzione!");
-}
+console.log("[VIEWER] ✅ Configurazione: viewer gestisce tutto autonomamente");
+console.log("[VIEWER] ✅ Endpoint locale:", CONFIG.endpointSnapshot);
 
 // State
 let allData = {
