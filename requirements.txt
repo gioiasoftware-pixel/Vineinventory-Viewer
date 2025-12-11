@@ -1,4 +1,0 @@
-asyncpg>=0.29.0
-PyJWT>=2.8.0
-colorlog>=6.7.0
-
