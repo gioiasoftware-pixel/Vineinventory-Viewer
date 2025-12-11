@@ -330,7 +330,7 @@ function renderTable() {
     const tbody = document.getElementById('table-body');
     
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nessun risultato trovato</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nessun risultato trovato</td></tr>';
         return;
     }
     
