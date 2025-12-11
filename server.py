@@ -196,6 +196,65 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             logger.error(f"[VIEWER_CACHE] Errore servendo HTML: {e}", exc_info=True)
             self.send_error(500, f"Internal server error: {e}")
     
+    def handle_snapshot_endpoint(self):
+        """Gestisci endpoint GET /api/inventory/snapshot"""
+        try:
+            parsed_path = urlparse(self.path)
+            query_params = parse_qs(parsed_path.query)
+            token = query_params.get('token', [None])[0]
+            
+            if not token:
+                self.send_error(400, "Token mancante")
+                return
+            
+            logger.info(f"[VIEWER_API] Richiesta snapshot ricevuta, token_length={len(token)}")
+            
+            # Importa e valida token
+            from viewer_db import validate_viewer_token, get_inventory_snapshot
+            
+            token_data = validate_viewer_token(token)
+            if not token_data:
+                logger.warning(f"[VIEWER_API] Token JWT non valido o scaduto")
+                self.send_response(401)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"detail": "Token scaduto o non valido"}).encode('utf-8'))
+                return
+            
+            telegram_id = token_data["telegram_id"]
+            business_name = token_data["business_name"]
+            
+            logger.info(
+                f"[VIEWER_API] Snapshot richiesto per telegram_id={telegram_id}, "
+                f"business_name={business_name}"
+            )
+            
+            # Recupera snapshot dal database
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                snapshot_data = loop.run_until_complete(
+                    get_inventory_snapshot(telegram_id, business_name)
+                )
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(snapshot_data).encode('utf-8'))
+                
+                logger.info(
+                    f"[VIEWER_API] Snapshot restituito con successo: rows={snapshot_data.get('meta', {}).get('total_rows', 0)}"
+                )
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            logger.error(f"[VIEWER_API] Errore snapshot: {e}", exc_info=True)
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"detail": f"Errore interno: {str(e)}"}).encode('utf-8'))
+    
     def end_headers(self):
         # Headers CORS se necessario (per chiamate API)
         self.send_header('Access-Control-Allow-Origin', '*')
