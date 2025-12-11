@@ -164,9 +164,15 @@ async function loadData() {
     allData = data;
     filteredData = [...data.rows];
     
+    console.log('[LOAD_DATA] allData.rows.length:', allData.rows ? allData.rows.length : 0);
+    console.log('[LOAD_DATA] filteredData.length:', filteredData.length);
+    console.log('[LOAD_DATA] Chiamando updateMeta, renderFilters, renderTable...');
+    
     updateMeta();
     renderFilters();
+    console.log('[LOAD_DATA] Prima di chiamare renderTable, filteredData.length:', filteredData.length);
     renderTable();
+    console.log('[LOAD_DATA] Dopo renderTable');
     updatePagination();
     
     // Setup CSV download link
