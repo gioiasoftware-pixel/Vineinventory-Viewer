@@ -501,28 +501,38 @@ body {
 /* Chart button */
 .chart-action-cell {
     text-align: center;
-    padding: 8px;
+    padding: 12px 8px;
 }
 
 .chart-btn {
-    background: none;
-    border: none;
+    background: var(--color-light-gray);
+    border: 1px solid var(--color-border);
     cursor: pointer;
-    padding: 4px;
+    padding: 8px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: var(--color-text-secondary);
+    color: var(--color-text-primary);
     transition: all 0.2s;
-    border-radius: 4px;
+    border-radius: 6px;
+    min-width: 40px;
+    min-height: 40px;
 }
 
 .chart-btn:hover {
-    color: var(--color-granaccia);
-    background-color: var(--color-light-gray);
+    color: var(--color-white);
+    background-color: var(--color-granaccia);
+    border-color: var(--color-granaccia);
+    transform: scale(1.05);
+}
+
+.chart-btn:active {
+    transform: scale(0.95);
 }
 
 .chart-btn svg {
     display: block;
+    width: 24px;
+    height: 24px;
 }
 
