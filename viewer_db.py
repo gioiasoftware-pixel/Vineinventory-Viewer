@@ -43,6 +43,14 @@ def validate_viewer_token(token: str) -> Optional[Dict[str, Any]]:
             logger.warning("[JWT_VALIDATE] Token vuoto")
             return None
         
+        # Log dettagliato per debug
+        logger.info(f"[JWT_VALIDATE] Inizio validazione token, length={len(token)}")
+        logger.debug(f"[JWT_VALIDATE] Token (primi 50 char): {token[:50]}...")
+        logger.debug(f"[JWT_VALIDATE] JWT_SECRET_KEY configurata: {bool(JWT_SECRET_KEY)}")
+        logger.debug(f"[JWT_VALIDATE] JWT_SECRET_KEY length: {len(JWT_SECRET_KEY) if JWT_SECRET_KEY else 0}")
+        logger.debug(f"[JWT_VALIDATE] JWT_SECRET_KEY (primi 20 char): {JWT_SECRET_KEY[:20] if JWT_SECRET_KEY else 'None'}...")
+        logger.debug(f"[JWT_VALIDATE] JWT_ALGORITHM: {JWT_ALGORITHM}")
+        
         # Decodifica e valida token
         payload = jwt.decode(
             token,
@@ -62,7 +70,7 @@ def validate_viewer_token(token: str) -> Optional[Dict[str, Any]]:
             return None
         
         logger.info(
-            f"[JWT_VALIDATE] Token JWT validato con successo: "
+            f"[JWT_VALIDATE] ✅ Token JWT validato con successo: "
             f"telegram_id={telegram_id}, business_name={business_name}"
         )
         
@@ -71,15 +79,24 @@ def validate_viewer_token(token: str) -> Optional[Dict[str, Any]]:
             "business_name": business_name
         }
         
-    except jwt.ExpiredSignatureError:
-        logger.warning("[JWT_VALIDATE] Token JWT scaduto")
+    except jwt.ExpiredSignatureError as e:
+        logger.warning(f"[JWT_VALIDATE] ❌ Token JWT scaduto: {e}")
+        return None
+    except jwt.InvalidSignatureError as e:
+        logger.error(
+            f"[JWT_VALIDATE] ❌ Firma token non valida (chiave JWT_SECRET_KEY non corrisponde): {e}"
+        )
+        logger.error(
+            f"[JWT_VALIDATE] ⚠️ Verifica che JWT_SECRET_KEY sia identica nel bot e nel viewer!"
+        )
         return None
     except jwt.InvalidTokenError as e:
-        logger.warning(f"[JWT_VALIDATE] Token JWT non valido: {e}")
+        logger.warning(f"[JWT_VALIDATE] ❌ Token JWT non valido: {e}")
+        logger.debug(f"[JWT_VALIDATE] Tipo errore: {type(e).__name__}")
         return None
     except Exception as e:
         logger.error(
-            f"[JWT_VALIDATE] Errore durante validazione token JWT: {e}",
+            f"[JWT_VALIDATE] ❌ Errore durante validazione token JWT: {e}",
             exc_info=True
         )
         return None
