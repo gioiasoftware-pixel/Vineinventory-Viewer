@@ -158,6 +158,14 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
         # Formatta vini per risposta
         rows = []
         for wine in wines_rows:
+            # Normalizza tipo vino per consistenza (come nei facets)
+            wine_type = wine['wine_type'] or "Altro"
+            wine_type_normalized = wine_type.strip()
+            if wine_type_normalized:
+                wine_type_normalized = wine_type_normalized[0].upper() + wine_type_normalized[1:].lower()
+            else:
+                wine_type_normalized = "Altro"
+            
             rows.append({
                 "name": wine['name'] or "-",
                 "winery": wine['producer'] or "-",
@@ -165,7 +173,7 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
                 "vintage": wine['vintage'],
                 "qty": wine['quantity'] or 0,
                 "price": float(wine['selling_price']) if wine['selling_price'] else 0.0,
-                "type": wine['wine_type'] or "Altro",
+                "type": wine_type_normalized,
                 "critical": wine['quantity'] is not None and wine['min_quantity'] is not None and wine['quantity'] <= wine['min_quantity']
             })
         
@@ -178,9 +186,15 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
         }
         
         for wine in wines_rows:
-            # Tipo
+            # Tipo - normalizza per evitare duplicati (trim + capitalize)
             wine_type = wine['wine_type'] or "Altro"
-            facets["type"][wine_type] = facets["type"].get(wine_type, 0) + 1
+            wine_type_normalized = wine_type.strip()
+            # Capitalizza prima lettera per consistenza (es. "spumante" -> "Spumante")
+            if wine_type_normalized:
+                wine_type_normalized = wine_type_normalized[0].upper() + wine_type_normalized[1:].lower()
+            else:
+                wine_type_normalized = "Altro"
+            facets["type"][wine_type_normalized] = facets["type"].get(wine_type_normalized, 0) + 1
             
             # Annata
             if wine['vintage']:

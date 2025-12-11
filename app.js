@@ -238,9 +238,13 @@ function toggleFilter(filterType, value) {
 // Apply filters and search
 function applyFilters() {
     filteredData = allData.rows.filter(row => {
-        // Type filter
-        if (activeFilters.type && row.type !== activeFilters.type) {
-            return false;
+        // Type filter - case-insensitive matching con trim
+        if (activeFilters.type) {
+            const rowType = (row.type || "").trim();
+            const filterType = activeFilters.type.trim();
+            if (rowType.toLowerCase() !== filterType.toLowerCase()) {
+                return false;
+            }
         }
         
         // Vintage filter
