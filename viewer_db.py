@@ -214,10 +214,11 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
                 wine_type_normalized = "Altro"
             facets["type"][wine_type_normalized] = facets["type"].get(wine_type_normalized, 0) + 1
             
-            # Annata
-            if wine['vintage']:
-                vintage_str = str(wine['vintage'])
-                facets["vintage"][vintage_str] = facets["vintage"].get(vintage_str, 0) + 1
+            # Annata - normalizza come stringa per matching consistente
+            if wine['vintage'] is not None:
+                vintage_str = str(wine['vintage']).strip()
+                if vintage_str:  # Solo se non vuoto dopo strip
+                    facets["vintage"][vintage_str] = facets["vintage"].get(vintage_str, 0) + 1
             
             # Cantina (producer) - normalizza per matching case-insensitive
             if wine['producer']:
