@@ -141,6 +141,7 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
             SELECT 
                 name,
                 producer,
+                supplier,
                 vintage,
                 quantity,
                 selling_price,
@@ -160,6 +161,7 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
             rows.append({
                 "name": wine['name'] or "-",
                 "winery": wine['producer'] or "-",
+                "supplier": wine['supplier'] or "-",
                 "vintage": wine['vintage'],
                 "qty": wine['quantity'] or 0,
                 "price": float(wine['selling_price']) if wine['selling_price'] else 0.0,
@@ -171,7 +173,8 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
         facets = {
             "type": {},
             "vintage": {},
-            "winery": {}
+            "winery": {},
+            "supplier": {}
         }
         
         for wine in wines_rows:
@@ -184,9 +187,15 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
                 vintage_str = str(wine['vintage'])
                 facets["vintage"][vintage_str] = facets["vintage"].get(vintage_str, 0) + 1
             
-            # Cantina (producer)
+            # Cantina (producer) - normalizza per matching case-insensitive
             if wine['producer']:
-                facets["winery"][wine['producer']] = facets["winery"].get(wine['producer'], 0) + 1
+                producer_normalized = wine['producer'].strip()
+                facets["winery"][producer_normalized] = facets["winery"].get(producer_normalized, 0) + 1
+            
+            # Fornitore (supplier)
+            if wine['supplier']:
+                supplier_normalized = wine['supplier'].strip()
+                facets["supplier"][supplier_normalized] = facets["supplier"].get(supplier_normalized, 0) + 1
         
         # Meta info
         last_update = None

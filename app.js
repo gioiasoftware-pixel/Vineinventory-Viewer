@@ -21,7 +21,8 @@ let currentPage = 1;
 let activeFilters = {
     type: null,
     vintage: null,
-    winery: null
+    winery: null,
+    supplier: null
 };
 let searchQuery = "";
 
@@ -195,6 +196,7 @@ function renderFilters() {
     renderFilterSection('type', allData.facets.type || {});
     renderFilterSection('vintage', allData.facets.vintage || {});
     renderFilterSection('winery', allData.facets.winery || {});
+    renderFilterSection('supplier', allData.facets.supplier || {});
 }
 
 function renderFilterSection(filterType, facets) {
@@ -246,9 +248,22 @@ function applyFilters() {
             return false;
         }
         
-        // Winery filter
-        if (activeFilters.winery && row.winery !== activeFilters.winery) {
-            return false;
+        // Winery filter - case-insensitive matching con trim
+        if (activeFilters.winery) {
+            const rowWinery = (row.winery || "").trim();
+            const filterWinery = activeFilters.winery.trim();
+            if (rowWinery.toLowerCase() !== filterWinery.toLowerCase()) {
+                return false;
+            }
+        }
+        
+        // Supplier filter - case-insensitive matching con trim
+        if (activeFilters.supplier) {
+            const rowSupplier = (row.supplier || "").trim();
+            const filterSupplier = activeFilters.supplier.trim();
+            if (rowSupplier.toLowerCase() !== filterSupplier.toLowerCase()) {
+                return false;
+            }
         }
         
         // Search filter
@@ -256,9 +271,10 @@ function applyFilters() {
             const query = searchQuery.toLowerCase();
             const nameMatch = row.name?.toLowerCase().includes(query);
             const wineryMatch = row.winery?.toLowerCase().includes(query);
+            const supplierMatch = row.supplier?.toLowerCase().includes(query);
             const vintageMatch = String(row.vintage).includes(query);
             
-            if (!nameMatch && !wineryMatch && !vintageMatch) {
+            if (!nameMatch && !wineryMatch && !supplierMatch && !vintageMatch) {
                 return false;
             }
         }
