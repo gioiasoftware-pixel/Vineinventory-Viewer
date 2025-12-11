@@ -339,20 +339,29 @@ function renderTable() {
     const pageData = filteredData.slice(start, end);
     
     tbody.innerHTML = pageData.map(row => `
-        <tr class="wine-row" data-wine-name="${escapeHtml(row.name || '')}">
+        <tr data-wine-name="${escapeHtml(row.name || '')}">
             <td class="wine-name-cell">${escapeHtml(row.name || '-')}</td>
             <td>${row.vintage || '-'}</td>
             <td>${row.qty || 0}</td>
             <td>€${(row.price || 0).toFixed(2)}</td>
             <td>${row.critical || row.qty <= 3 ? '<span class="critical-badge">Critica</span>' : '-'}</td>
+            <td class="chart-action-cell">
+                <button class="chart-btn" data-wine-name="${escapeHtml(row.name || '')}" title="Visualizza grafico movimenti">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 3V21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M7 16L12 11L16 15L21 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M21 10V4H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </td>
         </tr>
     `).join('');
     
-    // Aggiungi event listener per click sulle righe
-    document.querySelectorAll('.wine-row').forEach(row => {
-        row.style.cursor = 'pointer';
-        row.addEventListener('click', (e) => {
-            const wineName = row.dataset.wineName;
+    // Aggiungi event listener per click sui pulsanti grafico
+    document.querySelectorAll('.chart-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Evita propagazione eventi
+            const wineName = btn.dataset.wineName;
             if (wineName) {
                 showMovementsChart(wineName);
             }
@@ -534,7 +543,43 @@ async function showMovementsChart(wineName) {
         const movements = data.movements || [];
         
         if (movements.length === 0) {
-            chartContainer.innerHTML = '<div class="empty-state">Nessun movimento trovato per questo vino</div>';
+            // Mostra grafico vuoto anche senza movimenti
+            chartContainer.innerHTML = '<canvas id="movements-chart"></canvas>';
+            const ctx = document.getElementById('movements-chart').getContext('2d');
+            
+            if (movementsChart) {
+                movementsChart.destroy();
+            }
+            
+            movementsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Nessun movimento registrato per questo vino',
+                            font: {
+                                size: 14,
+                                color: '#666'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
             return;
         }
         

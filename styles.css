@@ -498,3 +498,31 @@ body {
     color: var(--color-granaccia);
 }
 
+/* Chart button */
+.chart-action-cell {
+    text-align: center;
+    padding: 8px;
+}
+
+.chart-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-secondary);
+    transition: all 0.2s;
+    border-radius: 4px;
+}
+
+.chart-btn:hover {
+    color: var(--color-granaccia);
+    background-color: var(--color-light-gray);
+}
+
+.chart-btn svg {
+    display: block;
+}
+
