@@ -350,9 +350,9 @@ function renderTable() {
             <td>${row.qty || 0}</td>
             <td>€${(row.price || 0).toFixed(2)}</td>
             <td>${row.critical || row.qty <= 3 ? '<span class="critical-badge">Critica</span>' : '-'}</td>
-            <td class="chart-action-cell">
-                <button class="chart-btn" data-wine-name="${wineName}" title="Visualizza grafico movimenti" type="button">
-                    <span style="font-size: 28px; line-height: 1; display: block;">📊</span>
+            <td class="chart-action-cell" style="background-color: yellow !important; min-width: 100px !important; padding: 10px !important;">
+                <button class="chart-btn" data-wine-name="${wineName}" title="Visualizza grafico movimenti" type="button" style="background: red !important; color: white !important; border: 3px solid black !important; padding: 10px !important; font-size: 20px !important; display: block !important; width: 50px !important; height: 50px !important; margin: 0 auto !important;">
+                    G
                 </button>
             </td>
         </tr>
