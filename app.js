@@ -352,7 +352,7 @@ function renderTable() {
             <td>${row.critical || row.qty <= 3 ? '<span class="critical-badge">Critica</span>' : '-'}</td>
             <td class="chart-action-cell">
                 <button class="chart-btn" data-wine-name="${wineName}" title="Visualizza grafico movimenti" type="button">
-                    📊
+                    <span style="font-size: 28px; line-height: 1; display: block;">📊</span>
                 </button>
             </td>
         </tr>
