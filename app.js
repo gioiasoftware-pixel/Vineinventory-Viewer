@@ -1,10 +1,14 @@
 // Configuration
+// Leggi configurazione iniettata dal server se disponibile
 const CONFIG = {
-    apiBase: (window.VIEWER_CONFIG && window.VIEWER_CONFIG.apiBase) || "",
+    apiBase: (window.VIEWER_CONFIG && window.VIEWER_CONFIG.apiBase) || "",  // Usa configurazione server o default
     endpointSnapshot: "/api/inventory/snapshot",
     endpointCsv: "/api/inventory/export.csv",
     pageSize: 50
 };
+
+// Log configurazione per debug
+console.log("[VIEWER] Configurazione API:", CONFIG);
 
 // State
 let allData = {
@@ -20,7 +24,6 @@ let activeFilters = {
     winery: null
 };
 let searchQuery = "";
-let embeddedMode = false;
 
 // Mock data per sviluppo (quando token=FAKE)
 const MOCK_DATA = {
@@ -73,8 +76,14 @@ async function fetchSnapshot(token) {
     const baseUrl = CONFIG.apiBase || window.location.origin;
     const url = `${baseUrl}${CONFIG.endpointSnapshot}?token=${encodeURIComponent(token)}`;
 
+    console.log("[VIEWER] Fetching snapshot from:", url);
+    console.log("[VIEWER] Base URL:", baseUrl);
+    console.log("[VIEWER] Endpoint:", CONFIG.endpointSnapshot);
+
     try {
         const response = await fetch(url);
+        
+        console.log("[VIEWER] Response status:", response.status);
         
         if (response.status === 401 || response.status === 410) {
             showError("Link scaduto o non valido");
@@ -82,44 +91,40 @@ async function fetchSnapshot(token) {
         }
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            const errorText = await response.text();
+            console.error("[VIEWER] Error response:", errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
         }
 
         const data = await response.json();
+        console.log("[VIEWER] Data received:", data.rows ? `${data.rows.length} rows` : "no rows");
         return data;
     } catch (error) {
-        console.error("Error fetching snapshot:", error);
-        showError("Errore nel caricamento dei dati");
+        console.error("[VIEWER] Error fetching snapshot:", error);
+        showError(`Errore nel caricamento dei dati: ${error.message}`);
         return null;
     }
 }
 
 // Load data (mock or real)
 async function loadData() {
-    const embeddedData = window.EMBEDDED_INVENTORY_DATA || null;
-    let token = getTokenFromURL();
+    const token = getTokenFromURL();
     
-    if (embeddedData) {
-        embeddedMode = true;
-    }
-
-    if (!embeddedMode && !token) {
+    if (!token) {
         showError("Token mancante nell'URL");
         return;
     }
-    
+
     let data;
 
     // Se token è FAKE, usa mock data
-    if (!embeddedMode && (token === "FAKE" || token === "fake")) {
+    if (token === "FAKE" || token === "fake") {
         data = MOCK_DATA;
         // Simula delay
         await new Promise(resolve => setTimeout(resolve, 500));
-    } else if (!embeddedMode) {
+    } else {
         data = await fetchSnapshot(token);
         if (!data) return;
-    } else {
-        data = embeddedData;
     }
 
     allData = data;
@@ -222,13 +227,9 @@ function applyFilters() {
             const query = searchQuery.toLowerCase();
             const nameMatch = row.name?.toLowerCase().includes(query);
             const wineryMatch = row.winery?.toLowerCase().includes(query);
-            const vintageMatch = String(row.vintage ?? '').includes(query);
-            const regionMatch = row.region?.toLowerCase().includes(query);
-            const countryMatch = row.country?.toLowerCase().includes(query);
-            const grapeMatch = row.grape_variety?.toLowerCase().includes(query);
-            const classificationMatch = row.classification?.toLowerCase().includes(query);
+            const vintageMatch = String(row.vintage).includes(query);
             
-            if (!nameMatch && !wineryMatch && !vintageMatch && !regionMatch && !countryMatch && !grapeMatch && !classificationMatch) {
+            if (!nameMatch && !wineryMatch && !vintageMatch) {
                 return false;
             }
         }
@@ -247,7 +248,7 @@ function renderTable() {
     const tbody = document.getElementById('table-body');
     
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Nessun risultato trovato</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nessun risultato trovato</td></tr>';
         return;
     }
     
@@ -255,81 +256,15 @@ function renderTable() {
     const end = start + CONFIG.pageSize;
     const pageData = filteredData.slice(start, end);
     
-    let html = '';
-    pageData.forEach((row, idx) => {
-        const rowIndex = start + idx;
-        html += `
-            <tr class="data-row" data-index="${rowIndex}">
-                <td>${escapeHtml(row.name || '-')}</td>
-                <td>${escapeHtml(row.winery || '-')}</td>
-                <td>${escapeHtml(row.type || '-')}</td>
-                <td>${row.vintage || '-'}</td>
-                <td>${row.qty ?? 0}</td>
-                <td>${formatCurrency(row.price)}</td>
-                <td>${escapeHtml(row.region || '-')}</td>
-                <td>${escapeHtml(row.country || '-')}</td>
-            </tr>
-        `;
-        html += generateDetailsRow(row, rowIndex);
-    });
-    
-    tbody.innerHTML = html;
-    setupRowDetails();
-}
-
-function generateDetailsRow(row, index) {
-    const detailItems = [];
-    
-    const addDetail = (label, value, formatter = (v) => v) => {
-        if (value !== null && value !== undefined && value !== '' && value !== '-') {
-            detailItems.push({ label, value: formatter(value) });
-        }
-    };
-    
-    addDetail('Costo (€)', row.cost_price, formatCurrency);
-    addDetail('Fornitore', row.supplier, escapeHtml);
-    addDetail('Scorta minima', row.min_qty, (v) => v);
-    addDetail('Uvaggio', row.grape_variety, escapeHtml);
-    addDetail('Classificazione', row.classification, escapeHtml);
-    addDetail('Gradazione', row.alcohol_content, formatAlcohol);
-    addDetail('Descrizione', row.description, escapeHtml);
-    addDetail('Note', row.notes, escapeHtml);
-    addDetail('Ultimo aggiornamento', row.updated_at, formatDateTime);
-    
-    if (detailItems.length === 0) {
-        return '';
-    }
-    
-    const detailHtml = detailItems.map(item => `
-        <div class="detail-item">
-            <span class="detail-label">${item.label}</span>
-            <span class="detail-value">${item.value}</span>
-        </div>
-    `).join('');
-    
-    return `
-        <tr class="details-row hidden" data-details="${index}">
-            <td colspan="8">
-                <div class="details-grid">
-                    ${detailHtml}
-                </div>
-            </td>
+    tbody.innerHTML = pageData.map(row => `
+        <tr>
+            <td>${escapeHtml(row.name || '-')}</td>
+            <td>${row.vintage || '-'}</td>
+            <td>${row.qty || 0}</td>
+            <td>€${(row.price || 0).toFixed(2)}</td>
+            <td>${row.critical || row.qty <= 3 ? '<span class="critical-badge">Critica</span>' : '-'}</td>
         </tr>
-    `;
-}
-
-function setupRowDetails() {
-    const rows = document.querySelectorAll('.data-row');
-    rows.forEach(row => {
-        row.addEventListener('click', () => {
-            const index = row.dataset.index;
-            const detailRow = document.querySelector(`.details-row[data-details="${index}"]`);
-            if (detailRow) {
-                detailRow.classList.toggle('hidden');
-                row.classList.toggle('expanded');
-            }
-        });
-    });
+    `).join('');
 }
 
 // Update pagination
@@ -398,81 +333,40 @@ function goToPage(page) {
 
 // Setup CSV download
 function setupCsvDownload(token) {
-    const downloadBtn = document.getElementById('download-csv');
-    
-    if (embeddedMode) {
-        downloadBtn.href = '#';
-        downloadBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const csv = generateMockCSV(allData.rows);
-            downloadCSV(csv, 'inventario.csv');
-        });
-        return;
-    }
-
     const baseUrl = CONFIG.apiBase || window.location.origin;
     const csvUrl = `${baseUrl}${CONFIG.endpointCsv}?token=${encodeURIComponent(token)}`;
+    
+    const downloadBtn = document.getElementById('download-csv');
     downloadBtn.href = csvUrl;
     
     if (token === "FAKE" || token === "fake") {
         downloadBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            const csv = generateMockCSV(allData.rows);
+            // Generate mock CSV
+            const csv = generateMockCSV();
             downloadCSV(csv, 'inventario.csv');
         });
     }
 }
 
 // Generate mock CSV
-function generateMockCSV(rowsData = []) {
-    const headers = ['Nome', 'Cantina', 'Tipologia', 'Annata', 'Quantità', 'Prezzo (€)', 'Regione', 'Paese', 'Costo (€)', 'Fornitore', 'Scorta minima', 'Uvaggio', 'Classificazione', 'Gradazione', 'Descrizione', 'Note', 'Ultimo aggiornamento'];
-    const rows = rowsData.map(row => [
+function generateMockCSV() {
+    const headers = ['Nome', 'Annata', 'Quantità', 'Prezzo (€)', 'Cantina', 'Tipo'];
+    const rows = allData.rows.map(row => [
         row.name || '',
-        row.winery || '',
-        row.type || '',
         row.vintage || '',
         row.qty || 0,
         row.price || 0,
-        row.region || '',
-        row.country || '',
-        row.cost_price || '',
-        row.supplier || '',
-        row.min_qty || '',
-        row.grape_variety || '',
-        row.classification || '',
-        row.alcohol_content || '',
-        row.description || '',
-        row.notes || '',
-        row.updated_at || ''
+        row.winery || '',
+        row.type || ''
     ]);
     
     const csvRows = [headers.join(',')];
     rows.forEach(row => {
-        csvRows.push(row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','));
+        csvRows.push(row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','));
     });
     
     return csvRows.join('\n');
-}
-
-function formatCurrency(value) {
-    if (value === null || value === undefined || value === '') return '-';
-    const number = Number(value);
-    if (Number.isNaN(number)) return '-';
-    return `€${number.toFixed(2)}`;
-}
-
-function formatAlcohol(value) {
-    if (value === null || value === undefined || value === '') return '-';
-    const number = Number(value);
-    if (Number.isNaN(number)) return '-';
-    return `${number.toFixed(1)}%`;
-}
-
-function formatDateTime(value) {
-    if (!value) return '-';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '-';
-    return date.toLocaleString();
 }
 
 // Download CSV
