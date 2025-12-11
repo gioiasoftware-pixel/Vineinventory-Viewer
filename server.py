@@ -38,9 +38,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self.serve_html_from_cache(view_id)
                 return
         
-        # Se richiesta root, serve index.html con configurazione iniettata
-        if self.path == '/' or self.path == '':
-            self.path = '/index.html'
+        # Se richiesta root o index.html, serve index.html con configurazione iniettata
+        if self.path == '/' or self.path == '' or self.path == '/index.html':
             self.serve_index_with_config()
             return
         
