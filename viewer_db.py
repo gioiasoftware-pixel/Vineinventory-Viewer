@@ -166,6 +166,15 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
             else:
                 wine_type_normalized = "Altro"
             
+            # Normalizza winery (producer) - escludi valori vuoti/null
+            winery_value = wine['producer']
+            if winery_value:
+                winery_normalized = winery_value.strip()
+                if not winery_normalized or winery_normalized.lower() in ("null", "none"):
+                    winery_normalized = "-"
+            else:
+                winery_normalized = "-"
+            
             # Normalizza supplier (escludi valori vuoti/null)
             supplier_value = wine['supplier']
             if supplier_value:
@@ -177,7 +186,7 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
             
             rows.append({
                 "name": wine['name'] or "-",
-                "winery": wine['producer'] or "-",
+                "winery": winery_normalized,
                 "supplier": supplier_normalized,
                 "vintage": wine['vintage'],
                 "qty": wine['quantity'] or 0,

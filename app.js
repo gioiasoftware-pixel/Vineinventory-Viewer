@@ -207,10 +207,14 @@ function renderFilterSection(filterType, facets) {
     }
     container.innerHTML = '';
 
-    // Filtra facets vuoti o placeholder (solo per supplier)
-    const filteredFacets = filterType === 'supplier' 
-        ? Object.entries(facets).filter(([key]) => key && key !== "-" && key !== "" && key !== "null" && key !== "None")
-        : Object.entries(facets);
+    // Filtra facets vuoti o placeholder (per supplier e winery)
+    let filteredFacets = Object.entries(facets);
+    
+    if (filterType === 'supplier' || filterType === 'winery') {
+        filteredFacets = filteredFacets.filter(([key]) => 
+            key && key !== "-" && key !== "" && key !== "null" && key !== "None"
+        );
+    }
 
     if (filteredFacets.length === 0) {
         container.innerHTML = '<div class="filter-item" style="opacity: 0.5; font-style: italic;">Nessun dato disponibile</div>';
@@ -223,7 +227,10 @@ function renderFilterSection(filterType, facets) {
     sortedFacets.forEach(([key, count]) => {
         const item = document.createElement('div');
         item.className = 'filter-item';
-        if (activeFilters[filterType] === key) {
+        // Per vintage, confronta come stringa per matching corretto
+        const filterKey = filterType === 'vintage' ? String(key) : key;
+        const activeKey = activeFilters[filterType] ? String(activeFilters[filterType]) : null;
+        if (activeKey === filterKey) {
             item.classList.add('active');
         }
         item.innerHTML = `
