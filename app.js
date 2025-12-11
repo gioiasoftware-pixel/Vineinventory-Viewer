@@ -83,14 +83,27 @@ async function fetchSnapshot(token) {
     const baseUrl = CONFIG.apiBase || window.location.origin;
     const url = `${baseUrl}${CONFIG.endpointSnapshot}?token=${encodeURIComponent(token)}`;
 
-    console.log("[VIEWER] Fetching snapshot from:", url);
-    console.log("[VIEWER] Base URL:", baseUrl);
-    console.log("[VIEWER] Endpoint:", CONFIG.endpointSnapshot);
+    console.log("[VIEWER] ===== DEBUG INFO =====");
+    console.log("[VIEWER] CONFIG.apiBase:", CONFIG.apiBase);
+    console.log("[VIEWER] window.VIEWER_CONFIG:", window.VIEWER_CONFIG);
+    console.log("[VIEWER] window.location.origin:", window.location.origin);
+    console.log("[VIEWER] Base URL utilizzato:", baseUrl);
+    console.log("[VIEWER] Endpoint completo:", CONFIG.endpointSnapshot);
+    console.log("[VIEWER] URL completo:", url);
+    console.log("[VIEWER] Token length:", token ? token.length : 0);
+    console.log("[VIEWER] =====================");
 
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            },
+            // Non aggiungere mode: 'cors' esplicitamente - fetch lo gestisce automaticamente
+        });
         
         console.log("[VIEWER] Response status:", response.status);
+        console.log("[VIEWER] Response headers:", Object.fromEntries(response.headers.entries()));
         
         if (response.status === 401 || response.status === 410) {
             showError("Link scaduto o non valido");
@@ -99,16 +112,32 @@ async function fetchSnapshot(token) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("[VIEWER] Error response:", errorText);
+            console.error("[VIEWER] Error response body:", errorText);
             throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
         }
 
         const data = await response.json();
-        console.log("[VIEWER] Data received:", data.rows ? `${data.rows.length} rows` : "no rows");
+        console.log("[VIEWER] Data received successfully:", {
+            rows: data.rows ? data.rows.length : 0,
+            facets: data.facets ? Object.keys(data.facets).length : 0,
+            meta: data.meta
+        });
         return data;
     } catch (error) {
         console.error("[VIEWER] Error fetching snapshot:", error);
-        showError(`Errore nel caricamento dei dati: ${error.message}`);
+        console.error("[VIEWER] Error name:", error.name);
+        console.error("[VIEWER] Error message:", error.message);
+        console.error("[VIEWER] Error stack:", error.stack);
+        
+        // Messaggio errore più dettagliato
+        let errorMsg = "Errore nel caricamento dei dati";
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            errorMsg = "Errore di connessione: impossibile raggiungere il server. Verifica la configurazione API.";
+        } else if (error.message) {
+            errorMsg = `Errore: ${error.message}`;
+        }
+        
+        showError(errorMsg);
         return null;
     }
 }
