@@ -1,14 +1,21 @@
 // Configuration
 // Leggi configurazione iniettata dal server se disponibile
-const CONFIG = {
-    apiBase: (window.VIEWER_CONFIG && window.VIEWER_CONFIG.apiBase) || "",  // Usa configurazione server o default
+// IMPORTANTE: window.VIEWER_CONFIG viene iniettato dal server.py PRIMA di questo script
+let CONFIG = {
+    apiBase: "",  // Default: stesso dominio del viewer
     endpointSnapshot: "/api/inventory/snapshot",
     endpointCsv: "/api/inventory/export.csv",
     pageSize: 50
 };
 
-// Log configurazione per debug
-console.log("[VIEWER] Configurazione API:", CONFIG);
+// Se configurazione è stata iniettata dal server, usala
+if (window.VIEWER_CONFIG && window.VIEWER_CONFIG.apiBase) {
+    CONFIG.apiBase = window.VIEWER_CONFIG.apiBase;
+    console.log("[VIEWER] Configurazione API dal server:", CONFIG);
+} else {
+    console.log("[VIEWER] Configurazione API default (stesso dominio):", CONFIG);
+    console.warn("[VIEWER] window.VIEWER_CONFIG non trovato - usando dominio corrente");
+}
 
 // State
 let allData = {
