@@ -333,9 +333,19 @@ function applyFilters() {
 
 // Render table
 function renderTable() {
+    console.log('[RENDER_TABLE] ===== INIZIO RENDER_TABLE =====');
     const tbody = document.getElementById('table-body');
     
+    if (!tbody) {
+        console.error('[RENDER_TABLE] ERRORE: tbody non trovato!');
+        return;
+    }
+    
+    console.log('[RENDER_TABLE] filteredData.length:', filteredData.length);
+    console.log('[RENDER_TABLE] currentPage:', currentPage);
+    
     if (filteredData.length === 0) {
+        console.log('[RENDER_TABLE] Nessun dato, mostro empty state');
         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nessun risultato trovato</td></tr>';
         return;
     }
