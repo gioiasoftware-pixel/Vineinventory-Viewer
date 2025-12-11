@@ -81,7 +81,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 content = f.read()
             
             # Leggi API_BASE da variabile ambiente (default se non configurata)
-            api_base = os.getenv('API_BASE', 'https://gioia-processor-production.up.railway.app')
+            def _normalize_url(url: str) -> str:
+                """Normalizza URL aggiungendo https:// se manca il protocollo"""
+                if not url:
+                    return 'https://gioia-processor-production.up.railway.app'
+                url = url.strip()
+                if not url.startswith(("http://", "https://")):
+                    url = f"https://{url}"
+                return url
+            
+            api_base_raw = os.getenv('API_BASE', 'https://gioia-processor-production.up.railway.app')
+            api_base = _normalize_url(api_base_raw)
             
             logger.info(f"[SERVER] Servendo index.html con apiBase={api_base}")
             
