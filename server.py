@@ -62,6 +62,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         try:
             index_path = os.path.join(DIRECTORY, 'index.html')
             if not os.path.exists(index_path):
+                logger.error(f"[SERVER] index.html non trovato in {index_path}")
                 self.send_error(404, "File not found")
                 return
             
@@ -72,6 +73,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             # Leggi API_BASE da variabile ambiente (default se non configurata)
             api_base = os.getenv('API_BASE', 'https://gioia-processor-production.up.railway.app')
             
+            logger.info(f"[SERVER] Servendo index.html con apiBase={api_base}")
+            
             # Inietta configurazione JavaScript prima della chiusura di </head>
             # IMPORTANTE: Deve essere PRIMA di app.js per essere disponibile
             config_script = f'''
@@ -80,23 +83,27 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     window.VIEWER_CONFIG = {{
         apiBase: "{api_base}"
     }};
-    console.log("[VIEWER_CONFIG] Configurazione iniettata:", window.VIEWER_CONFIG);
+    console.log("[VIEWER_CONFIG] Configurazione iniettata dal server:", window.VIEWER_CONFIG);
+    console.log("[VIEWER_CONFIG] API Base URL:", "{api_base}");
 </script>
 '''
             
             # Inserisci lo script prima di </head> (deve essere prima di app.js)
             if '</head>' in content:
-                # Inserisci prima dell'ultima riga di </head>
+                # Inserisci prima della chiusura di </head>
                 content = content.replace('</head>', config_script + '</head>')
+                logger.debug("[SERVER] Configurazione inserita prima di </head>")
             elif '<script' in content:
                 # Se non c'è </head>, inserisci prima del primo script
                 first_script_pos = content.find('<script')
                 content = content[:first_script_pos] + config_script + content[first_script_pos:]
+                logger.debug("[SERVER] Configurazione inserita prima del primo <script>")
             else:
                 # Ultimo fallback: prima di <body>
                 content = content.replace('<body>', config_script + '<body>')
+                logger.debug("[SERVER] Configurazione inserita prima di <body>")
             
-            logger.info(f"[SERVER] Configurazione iniettata: apiBase={api_base}")
+            logger.info(f"[SERVER] Configurazione iniettata con successo: apiBase={api_base}")
             
             # Invia risposta
             self.send_response(200)
