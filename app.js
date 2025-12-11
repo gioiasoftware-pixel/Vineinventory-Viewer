@@ -760,11 +760,6 @@ document.addEventListener('DOMContentLoaded', () => {
             closeMovementsModal();
         }
     });
-        searchTimeout = setTimeout(() => {
-            searchQuery = e.target.value.trim();
-            applyFilters();
-        }, 300); // Debounce 300ms
-    });
     
     // Load data
     loadData();
