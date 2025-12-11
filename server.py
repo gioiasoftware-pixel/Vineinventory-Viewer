@@ -30,6 +30,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.handle_snapshot_endpoint()
             return
         
+        # Endpoint API export CSV inventario
+        if parsed_path.path == '/api/inventory/export.csv':
+            self.handle_csv_export_endpoint()
+            return
+        
         # Endpoint API per generazione viewer
         if parsed_path.path == '/api/generate':
             self.handle_generate_endpoint()
@@ -327,6 +332,109 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({"detail": f"Errore interno: {str(e)}"}).encode('utf-8'))
+    
+    def handle_csv_export_endpoint(self):
+        """Gestisci endpoint GET /api/inventory/export.csv"""
+        try:
+            parsed_path = urlparse(self.path)
+            query_params = parse_qs(parsed_path.query)
+            token = query_params.get('token', [None])[0]
+            
+            if not token:
+                self.send_error(400, "Token mancante")
+                return
+            
+            logger.info(f"[VIEWER_API] Richiesta export CSV ricevuta, token_length={len(token)}")
+            
+            # Importa e valida token
+            from viewer_db import validate_viewer_token, get_inventory_snapshot
+            
+            token_data = validate_viewer_token(token)
+            if not token_data:
+                logger.warning(f"[VIEWER_API] Token JWT non valido o scaduto per export CSV")
+                self.send_response(401)
+                self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                self.end_headers()
+                self.wfile.write("Token scaduto o non valido".encode('utf-8'))
+                return
+            
+            telegram_id = token_data["telegram_id"]
+            business_name = token_data["business_name"]
+            
+            logger.info(
+                f"[VIEWER_API] Export CSV richiesto per telegram_id={telegram_id}, "
+                f"business_name={business_name}"
+            )
+            
+            # Recupera snapshot dal database e genera CSV
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                snapshot_data = loop.run_until_complete(
+                    get_inventory_snapshot(telegram_id, business_name)
+                )
+                
+                # Genera CSV dai dati
+                csv_content = self.generate_csv_from_snapshot(snapshot_data)
+                
+                # Genera nome file con timestamp
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"inventario_{business_name.replace(' ', '_')}_{timestamp}.csv"
+                
+                # Invia CSV come download
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+                self.end_headers()
+                self.wfile.write(csv_content.encode('utf-8'))
+                
+                logger.info(
+                    f"[VIEWER_API] CSV esportato con successo: rows={len(snapshot_data.get('rows', []))}, "
+                    f"filename={filename}"
+                )
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            logger.error(f"[VIEWER_API] Errore export CSV: {e}", exc_info=True)
+            self.send_response(500)
+            self.send_header('Content-Type', 'text/plain; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(f"Errore interno: {str(e)}".encode('utf-8'))
+    
+    def generate_csv_from_snapshot(self, snapshot_data):
+        """Genera contenuto CSV dallo snapshot"""
+        import csv
+        import io
+        
+        rows = snapshot_data.get('rows', [])
+        
+        # Headers CSV
+        headers = ['Nome', 'Cantina', 'Fornitore', 'Annata', 'Quantità', 'Prezzo (€)', 'Tipo', 'Scorta Critica']
+        
+        # Crea CSV in memoria
+        output = io.StringIO()
+        writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+        
+        # Scrivi headers
+        writer.writerow(headers)
+        
+        # Scrivi righe dati
+        for row in rows:
+            csv_row = [
+                row.get('name', ''),
+                row.get('winery', ''),
+                row.get('supplier', ''),
+                row.get('vintage', ''),
+                row.get('qty', 0),
+                row.get('price', 0.0),
+                row.get('type', ''),
+                'Sì' if row.get('critical', False) else 'No'
+            ]
+            writer.writerow(csv_row)
+        
+        return output.getvalue()
     
     def log_message(self, format, *args):
         """Override per logging più pulito"""

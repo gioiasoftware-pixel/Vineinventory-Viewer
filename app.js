@@ -415,28 +415,42 @@ function setupCsvDownload(token) {
     const csvUrl = `${baseUrl}${CONFIG.endpointCsv}?token=${encodeURIComponent(token)}`;
     
     const downloadBtn = document.getElementById('download-csv');
-    downloadBtn.href = csvUrl;
     
+    // Per token FAKE, genera CSV mock dal frontend
     if (token === "FAKE" || token === "fake") {
         downloadBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            // Generate mock CSV
+            // Generate mock CSV dai dati caricati
             const csv = generateMockCSV();
             downloadCSV(csv, 'inventario.csv');
+        });
+        downloadBtn.href = "#";
+    } else {
+        // Per token reali, usa l'endpoint del server
+        downloadBtn.href = csvUrl;
+        downloadBtn.addEventListener('click', (e) => {
+            // Il download avverrà automaticamente tramite href
+            // Nessun preventDefault necessario
+            console.log("[VIEWER] Download CSV avviato:", csvUrl);
         });
     }
 }
 
-// Generate mock CSV
+// Generate mock CSV (per sviluppo/test con token FAKE)
 function generateMockCSV() {
-    const headers = ['Nome', 'Annata', 'Quantità', 'Prezzo (€)', 'Cantina', 'Tipo'];
-    const rows = allData.rows.map(row => [
+    // Usa i dati filtrati se disponibili, altrimenti tutti i dati
+    const dataToExport = filteredData.length > 0 ? filteredData : allData.rows;
+    
+    const headers = ['Nome', 'Cantina', 'Fornitore', 'Annata', 'Quantità', 'Prezzo (€)', 'Tipo', 'Scorta Critica'];
+    const rows = dataToExport.map(row => [
         row.name || '',
+        row.winery || '',
+        row.supplier || '',
         row.vintage || '',
         row.qty || 0,
-        row.price || 0,
-        row.winery || '',
-        row.type || ''
+        row.price || 0.0,
+        row.type || '',
+        row.critical ? 'Sì' : 'No'
     ]);
     
     const csvRows = [headers.join(',')];
