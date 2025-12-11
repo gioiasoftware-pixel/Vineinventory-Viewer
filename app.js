@@ -350,13 +350,9 @@ function renderTable() {
             <td>${row.qty || 0}</td>
             <td>€${(row.price || 0).toFixed(2)}</td>
             <td>${row.critical || row.qty <= 3 ? '<span class="critical-badge">Critica</span>' : '-'}</td>
-            <td class="chart-action-cell" style="background-color: #f5f5f5 !important; border-left: 1px solid #e0e0e0 !important;">
-                <button class="chart-btn" data-wine-name="${wineName}" title="Visualizza grafico movimenti" type="button" style="background: #f5f5f5 !important; border: 2px solid #9a182e !important; display: block !important; visibility: visible !important;">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block !important; visibility: visible !important;">
-                        <path d="M3 3V21H21" stroke="#9a182e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M7 16L12 11L16 15L21 10" stroke="#9a182e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M21 10V4H15" stroke="#9a182e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
+            <td class="chart-action-cell">
+                <button class="chart-btn" data-wine-name="${wineName}" title="Visualizza grafico movimenti" type="button">
+                    📊
                 </button>
             </td>
         </tr>
