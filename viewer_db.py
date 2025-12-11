@@ -213,7 +213,9 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
             # Cantina (producer) - normalizza per matching case-insensitive
             if wine['producer']:
                 producer_normalized = wine['producer'].strip()
-                facets["winery"][producer_normalized] = facets["winery"].get(producer_normalized, 0) + 1
+                # Escludi valori vuoti o placeholder
+                if producer_normalized and producer_normalized not in ("-", "", "null", "None"):
+                    facets["winery"][producer_normalized] = facets["winery"].get(producer_normalized, 0) + 1
             
             # Fornitore (supplier) - normalizza per evitare duplicati
             if wine['supplier']:

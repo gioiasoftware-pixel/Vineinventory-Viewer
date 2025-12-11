@@ -239,10 +239,14 @@ function renderFilterSection(filterType, facets) {
 
 // Toggle filter
 function toggleFilter(filterType, value) {
-    if (activeFilters[filterType] === value) {
+    // Per vintage, normalizza come stringa per matching consistente
+    const normalizedValue = filterType === 'vintage' ? String(value) : value;
+    
+    if (activeFilters[filterType] === normalizedValue || 
+        (filterType === 'vintage' && String(activeFilters[filterType]) === normalizedValue)) {
         activeFilters[filterType] = null;
     } else {
-        activeFilters[filterType] = value;
+        activeFilters[filterType] = normalizedValue;
     }
     
     applyFilters();
@@ -261,9 +265,13 @@ function applyFilters() {
             }
         }
         
-        // Vintage filter
-        if (activeFilters.vintage && String(row.vintage) !== String(activeFilters.vintage)) {
-            return false;
+        // Vintage filter - normalizza per matching (numero o stringa)
+        if (activeFilters.vintage) {
+            const rowVintage = row.vintage !== null && row.vintage !== undefined ? String(row.vintage).trim() : "";
+            const filterVintage = String(activeFilters.vintage).trim();
+            if (rowVintage !== filterVintage) {
+                return false;
+            }
         }
         
         // Winery filter - case-insensitive matching con trim
