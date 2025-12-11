@@ -1,0 +1,13 @@
+[phases.setup]
+nixPkgs = ["python3"]
+
+[phases.install]
+cmds = [
+  "python3 -m venv /opt/venv",
+  "/opt/venv/bin/python3 -m pip install --upgrade pip --no-cache-dir",
+  "/opt/venv/bin/python3 -m pip install --no-cache-dir -r requirements.txt"
+]
+
+[start]
+cmd = "/opt/venv/bin/python3 server.py"
+
