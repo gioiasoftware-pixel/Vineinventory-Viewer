@@ -501,33 +501,32 @@ body {
 /* Chart button */
 .chart-action-cell {
     text-align: center;
-    padding: 12px 8px !important;
-    width: 80px;
-    min-width: 80px;
-    background-color: var(--color-white) !important;
+    padding: 12px 8px;
+    width: 100px;
+    min-width: 100px;
 }
 
 .chart-btn {
-    background: var(--color-light-gray) !important;
-    border: 2px solid var(--color-border) !important;
+    background: var(--color-light-gray);
+    border: 2px solid var(--color-border);
     cursor: pointer;
-    padding: 10px !important;
-    display: inline-flex !important;
+    padding: 8px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: var(--color-text-primary) !important;
+    color: var(--color-text-primary);
     transition: all 0.2s;
     border-radius: 8px;
-    width: 48px !important;
-    height: 48px !important;
+    width: 48px;
+    height: 48px;
     margin: 0 auto;
     box-sizing: border-box;
 }
 
 .chart-btn:hover {
-    color: var(--color-white) !important;
-    background-color: var(--color-granaccia) !important;
-    border-color: var(--color-granaccia) !important;
+    color: var(--color-white);
+    background-color: var(--color-granaccia);
+    border-color: var(--color-granaccia);
     transform: scale(1.1);
     box-shadow: 0 2px 8px rgba(154, 24, 46, 0.3);
 }
@@ -536,8 +535,10 @@ body {
     transform: scale(0.95);
 }
 
-.chart-btn {
-    font-size: 28px !important;
-    line-height: 1 !important;
+.chart-btn svg {
+    display: block;
+    width: 24px;
+    height: 24px;
+    pointer-events: none;
 }
 
