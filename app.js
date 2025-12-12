@@ -373,21 +373,38 @@ function renderTable() {
         const wineId = `wine-${index}-${Date.now()}`;
         const isExpanded = false; // Stato iniziale non espanso
         
-        // Debug: verifica i dati ricevuti
-        if (index === 0) {
-            console.log('[RENDER_TABLE] Prima riga - dati completi:', {
+        // Debug: verifica i dati ricevuti per le prime 3 righe
+        if (index < 3) {
+            console.log(`[RENDER_TABLE] Riga ${index} - dati completi:`, {
                 name: row.name,
                 winery: row.winery,
                 supplier: row.supplier,
                 vintage: row.vintage,
                 qty: row.qty,
-                price: row.price
+                price: row.price,
+                'row.winery type': typeof row.winery,
+                'row.supplier type': typeof row.supplier,
+                'row.vintage type': typeof row.vintage
             });
         }
         
-        // Assicurati di usare winery e supplier, non vintage
-        const wineryDisplay = row.winery && row.winery !== '-' ? escapeHtml(row.winery) : '-';
-        const supplierDisplay = row.supplier && row.supplier !== '-' ? escapeHtml(row.supplier) : '-';
+        // IMPORTANTE: Usa winery e supplier, NON vintage
+        // Se winery è vuoto/null/undefined, mostra '-' invece di vintage
+        const wineryDisplay = (row.winery && row.winery !== '-' && row.winery !== 'null' && row.winery !== 'None') 
+            ? escapeHtml(String(row.winery)) 
+            : '-';
+        const supplierDisplay = (row.supplier && row.supplier !== '-' && row.supplier !== 'null' && row.supplier !== 'None') 
+            ? escapeHtml(String(row.supplier)) 
+            : '-';
+        
+        // Debug per verificare cosa viene renderizzato
+        if (index < 3) {
+            console.log(`[RENDER_TABLE] Riga ${index} - valori renderizzati:`, {
+                wineryDisplay: wineryDisplay,
+                supplierDisplay: supplierDisplay,
+                'NOT using vintage': row.vintage
+            });
+        }
         
         return `
         <tr class="wine-row" data-wine-id="${wineId}" data-expanded="false">
