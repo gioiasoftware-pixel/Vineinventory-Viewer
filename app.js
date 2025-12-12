@@ -418,13 +418,17 @@ function renderTable() {
             });
         }
         
+        // FORZATURA: Assicurati che NON venga mai usato vintage nella colonna Cantina
+        // Se wineryDisplay è '-', NON usare vintage come fallback
+        const cantinaValue = wineryDisplay; // SEMPRE usa wineryDisplay, mai vintage
+        
         return `
         <tr class="wine-row" data-wine-id="${wineId}" data-expanded="false">
             <td class="wine-name-cell clickable-cell">${wineName || '-'}</td>
-            <td class="clickable-cell">${wineryDisplay}</td>
+            <td class="clickable-cell" data-field="cantina">${cantinaValue}</td>
             <td class="clickable-cell">${row.qty || 0}</td>
             <td class="clickable-cell">€${(row.price || 0).toFixed(2)}</td>
-            <td class="clickable-cell">${supplierDisplay}</td>
+            <td class="clickable-cell" data-field="fornitore">${supplierDisplay}</td>
             <td class="clickable-cell">${row.critical || row.qty <= 3 ? '<span class="critical-badge">Critica</span>' : '-'}</td>
             <td class="chart-action-cell">
                 <button class="chart-btn" data-wine-name="${wineName}" title="Visualizza grafico movimenti" type="button" onclick="event.stopPropagation(); showMovementsChart('${wineName}');">
