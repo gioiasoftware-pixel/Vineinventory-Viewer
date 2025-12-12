@@ -360,15 +360,30 @@ function renderTable() {
         const wineName = escapeHtml(row.name || '');
         const wineId = `wine-${index}-${Date.now()}`;
         const isExpanded = false; // Stato iniziale non espanso
-        console.log(`[RENDER_TABLE] Riga ${index}: wineName="${wineName}"`);
+        
+        // Debug: verifica i dati ricevuti
+        if (index === 0) {
+            console.log('[RENDER_TABLE] Prima riga - dati completi:', {
+                name: row.name,
+                winery: row.winery,
+                supplier: row.supplier,
+                vintage: row.vintage,
+                qty: row.qty,
+                price: row.price
+            });
+        }
+        
+        // Assicurati di usare winery e supplier, non vintage
+        const wineryDisplay = row.winery && row.winery !== '-' ? escapeHtml(row.winery) : '-';
+        const supplierDisplay = row.supplier && row.supplier !== '-' ? escapeHtml(row.supplier) : '-';
         
         return `
         <tr class="wine-row" data-wine-id="${wineId}" data-expanded="false">
             <td class="wine-name-cell clickable-cell">${wineName || '-'}</td>
-            <td class="clickable-cell">${escapeHtml(row.winery || '-')}</td>
+            <td class="clickable-cell">${wineryDisplay}</td>
             <td class="clickable-cell">${row.qty || 0}</td>
             <td class="clickable-cell">€${(row.price || 0).toFixed(2)}</td>
-            <td class="clickable-cell">${escapeHtml(row.supplier || '-')}</td>
+            <td class="clickable-cell">${supplierDisplay}</td>
             <td class="clickable-cell">${row.critical || row.qty <= 3 ? '<span class="critical-badge">Critica</span>' : '-'}</td>
             <td class="chart-action-cell">
                 <button class="chart-btn" data-wine-name="${wineName}" title="Visualizza grafico movimenti" type="button" onclick="event.stopPropagation(); showMovementsChart('${wineName}');">
