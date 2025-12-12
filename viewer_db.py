@@ -199,7 +199,15 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
                 "vintage": wine['vintage'],
                 "qty": wine['quantity'] or 0,
                 "price": float(wine['selling_price']) if wine['selling_price'] else 0.0,
+                "cost_price": float(wine['cost_price']) if wine.get('cost_price') else None,
                 "type": wine_type_normalized,
+                "grape_variety": wine.get('grape_variety'),
+                "region": wine.get('region'),
+                "country": wine.get('country'),
+                "classification": wine.get('classification'),
+                "alcohol_content": float(wine['alcohol_content']) if wine.get('alcohol_content') else None,
+                "description": wine.get('description'),
+                "notes": wine.get('notes'),
                 "critical": wine['quantity'] is not None and wine['min_quantity'] is not None and wine['quantity'] <= wine['min_quantity']
             })
         
