@@ -422,10 +422,15 @@ function renderTable() {
         // Se wineryDisplay è '-', NON usare vintage come fallback
         const cantinaValue = wineryDisplay; // SEMPRE usa wineryDisplay, mai vintage
         
+        // LOG FORZATO per debug - sempre eseguito per le prime 3 righe
+        if (index < 3) {
+            console.error(`[DEBUG RIGA ${index}] cantinaValue="${cantinaValue}", wineryDisplay="${wineryDisplay}", row.winery="${row.winery}", row.vintage=${row.vintage}`);
+        }
+        
         return `
         <tr class="wine-row" data-wine-id="${wineId}" data-expanded="false">
             <td class="wine-name-cell clickable-cell">${wineName || '-'}</td>
-            <td class="clickable-cell" data-field="cantina">${cantinaValue}</td>
+            <td class="clickable-cell" data-field="cantina" data-debug-winery="${row.winery}" data-debug-vintage="${row.vintage}">${cantinaValue}</td>
             <td class="clickable-cell">${row.qty || 0}</td>
             <td class="clickable-cell">€${(row.price || 0).toFixed(2)}</td>
             <td class="clickable-cell" data-field="fornitore">${supplierDisplay}</td>
