@@ -166,6 +166,18 @@ async function loadData() {
     
     console.log('[LOAD_DATA] allData.rows.length:', allData.rows ? allData.rows.length : 0);
     console.log('[LOAD_DATA] filteredData.length:', filteredData.length);
+    
+    // Debug: verifica struttura dati ricevuti
+    if (data.rows && data.rows.length > 0) {
+        console.log('[LOAD_DATA] Prima riga dati ricevuti:', {
+            name: data.rows[0].name,
+            winery: data.rows[0].winery,
+            supplier: data.rows[0].supplier,
+            vintage: data.rows[0].vintage,
+            keys: Object.keys(data.rows[0])
+        });
+    }
+    
     console.log('[LOAD_DATA] Chiamando updateMeta, renderFilters, renderTable...');
     
     updateMeta();
