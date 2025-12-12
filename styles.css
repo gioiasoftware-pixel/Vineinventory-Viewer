@@ -498,6 +498,73 @@ body {
     color: var(--color-granaccia);
 }
 
+/* Clickable cells */
+.clickable-cell {
+    cursor: pointer;
+    user-select: none;
+}
+
+.wine-row.expanded {
+    background-color: var(--color-light-gray);
+}
+
+.wine-row.expanded .wine-name-cell {
+    font-weight: 600;
+}
+
+/* Wine details row */
+.wine-details-row {
+    background-color: var(--color-off-white);
+}
+
+.wine-details-cell {
+    padding: 0 !important;
+    border-top: 2px solid var(--color-granaccia);
+}
+
+.wine-details-content {
+    padding: 24px 32px;
+}
+
+.wine-details-content h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-granaccia);
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.wine-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px 32px;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.detail-item.full-width {
+    grid-column: 1 / -1;
+}
+
+.detail-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-value {
+    font-size: 14px;
+    color: var(--color-text-primary);
+    word-break: break-word;
+}
+
 /* Chart button */
 .chart-action-cell {
     text-align: center;

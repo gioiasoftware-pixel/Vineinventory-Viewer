@@ -187,7 +187,7 @@ function showError(message) {
     
     // Hide loading/table content
     document.getElementById('table-body').innerHTML = 
-        `<tr><td colspan="6" class="empty-state">${message}</td></tr>`;
+        `<tr><td colspan="7" class="empty-state">${message}</td></tr>`;
 }
 
 // Update meta info
@@ -346,7 +346,7 @@ function renderTable() {
     
     if (filteredData.length === 0) {
         console.log('[RENDER_TABLE] Nessun dato, mostro empty state');
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nessun risultato trovato</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Nessun risultato trovato</td></tr>';
         return;
     }
     
@@ -358,22 +358,95 @@ function renderTable() {
     
     tbody.innerHTML = pageData.map((row, index) => {
         const wineName = escapeHtml(row.name || '');
+        const wineId = `wine-${index}-${Date.now()}`;
+        const isExpanded = false; // Stato iniziale non espanso
         console.log(`[RENDER_TABLE] Riga ${index}: wineName="${wineName}"`);
+        
         return `
-        <tr>
-            <td class="wine-name-cell">${wineName || '-'}</td>
-            <td>${row.vintage || '-'}</td>
-            <td>${row.qty || 0}</td>
-            <td>€${(row.price || 0).toFixed(2)}</td>
-            <td>${row.critical || row.qty <= 3 ? '<span class="critical-badge">Critica</span>' : '-'}</td>
+        <tr class="wine-row" data-wine-id="${wineId}" data-expanded="false">
+            <td class="wine-name-cell clickable-cell">${wineName || '-'}</td>
+            <td class="clickable-cell">${escapeHtml(row.winery || '-')}</td>
+            <td class="clickable-cell">${row.qty || 0}</td>
+            <td class="clickable-cell">€${(row.price || 0).toFixed(2)}</td>
+            <td class="clickable-cell">${escapeHtml(row.supplier || '-')}</td>
+            <td class="clickable-cell">${row.critical || row.qty <= 3 ? '<span class="critical-badge">Critica</span>' : '-'}</td>
             <td class="chart-action-cell">
-                <button class="chart-btn" data-wine-name="${wineName}" title="Visualizza grafico movimenti" type="button">
+                <button class="chart-btn" data-wine-name="${wineName}" title="Visualizza grafico movimenti" type="button" onclick="event.stopPropagation(); showMovementsChart('${wineName}');">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M3 3V21H21" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M7 16L12 11L16 15L21 10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M21 10V4H15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </button>
+            </td>
+        </tr>
+        <tr class="wine-details-row" data-wine-id="${wineId}" style="display: none;">
+            <td colspan="7" class="wine-details-cell">
+                <div class="wine-details-content">
+                    <h3>Dettagli Vino: ${wineName}</h3>
+                    <div class="wine-details-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Nome:</span>
+                            <span class="detail-value">${wineName || '-'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Cantina:</span>
+                            <span class="detail-value">${escapeHtml(row.winery || '-')}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Annata:</span>
+                            <span class="detail-value">${row.vintage || '-'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Quantità:</span>
+                            <span class="detail-value">${row.qty || 0} bottiglie</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Prezzo vendita:</span>
+                            <span class="detail-value">€${(row.price || 0).toFixed(2)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Fornitore:</span>
+                            <span class="detail-value">${escapeHtml(row.supplier || '-')}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Tipologia:</span>
+                            <span class="detail-value">${escapeHtml(row.type || '-')}</span>
+                        </div>
+                        ${row.grape_variety ? `<div class="detail-item">
+                            <span class="detail-label">Uvaggio:</span>
+                            <span class="detail-value">${escapeHtml(row.grape_variety)}</span>
+                        </div>` : ''}
+                        ${row.region ? `<div class="detail-item">
+                            <span class="detail-label">Regione:</span>
+                            <span class="detail-value">${escapeHtml(row.region)}</span>
+                        </div>` : ''}
+                        ${row.country ? `<div class="detail-item">
+                            <span class="detail-label">Paese:</span>
+                            <span class="detail-value">${escapeHtml(row.country)}</span>
+                        </div>` : ''}
+                        ${row.classification ? `<div class="detail-item">
+                            <span class="detail-label">Classificazione:</span>
+                            <span class="detail-value">${escapeHtml(row.classification)}</span>
+                        </div>` : ''}
+                        ${row.cost_price ? `<div class="detail-item">
+                            <span class="detail-label">Prezzo costo:</span>
+                            <span class="detail-value">€${row.cost_price.toFixed(2)}</span>
+                        </div>` : ''}
+                        ${row.alcohol_content ? `<div class="detail-item">
+                            <span class="detail-label">Gradazione:</span>
+                            <span class="detail-value">${row.alcohol_content}%</span>
+                        </div>` : ''}
+                        ${row.description ? `<div class="detail-item full-width">
+                            <span class="detail-label">Descrizione:</span>
+                            <span class="detail-value">${escapeHtml(row.description)}</span>
+                        </div>` : ''}
+                        ${row.notes ? `<div class="detail-item full-width">
+                            <span class="detail-label">Note:</span>
+                            <span class="detail-value">${escapeHtml(row.notes)}</span>
+                        </div>` : ''}
+                    </div>
+                </div>
             </td>
         </tr>
         `;
@@ -383,15 +456,42 @@ function renderTable() {
     const buttons = document.querySelectorAll('.chart-btn');
     console.log('[RENDER_TABLE] Pulsanti trovati:', buttons.length);
     
-    // Aggiungi event listener per click sui pulsanti grafico
-    buttons.forEach((btn, index) => {
-        console.log(`[RENDER_TABLE] Aggiungo listener a pulsante ${index}, wineName="${btn.dataset.wineName}"`);
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Evita propagazione eventi
-            const wineName = btn.dataset.wineName;
-            console.log('[CHART_BTN] Click su pulsante, wineName:', wineName);
-            if (wineName) {
-                showMovementsChart(wineName);
+    // Aggiungi event listener per click sulle righe vino (per espansione)
+    document.querySelectorAll('.wine-row').forEach(row => {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', (e) => {
+            // Non espandere se il click è sul pulsante grafico
+            if (e.target.closest('.chart-btn')) {
+                return;
+            }
+            
+            const wineId = row.dataset.wineId;
+            const isExpanded = row.dataset.expanded === 'true';
+            const detailsRow = document.querySelector(`.wine-details-row[data-wine-id="${wineId}"]`);
+            
+            if (detailsRow) {
+                if (isExpanded) {
+                    // Chiudi
+                    detailsRow.style.display = 'none';
+                    row.dataset.expanded = 'false';
+                    row.classList.remove('expanded');
+                } else {
+                    // Chiudi tutte le altre righe espanse
+                    document.querySelectorAll('.wine-row[data-expanded="true"]').forEach(expRow => {
+                        const expWineId = expRow.dataset.wineId;
+                        const expDetailsRow = document.querySelector(`.wine-details-row[data-wine-id="${expWineId}"]`);
+                        if (expDetailsRow) {
+                            expDetailsRow.style.display = 'none';
+                            expRow.dataset.expanded = 'false';
+                            expRow.classList.remove('expanded');
+                        }
+                    });
+                    
+                    // Apri questa riga
+                    detailsRow.style.display = 'table-row';
+                    row.dataset.expanded = 'true';
+                    row.classList.add('expanded');
+                }
             }
         });
     });

@@ -136,7 +136,7 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
         
         user_id = user_row['id']
         
-        # Recupera tutti i vini
+        # Recupera tutti i vini con tutti i campi disponibili
         wines_query = f"""
             SELECT 
                 name,
@@ -145,7 +145,15 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
                 vintage,
                 quantity,
                 selling_price,
+                cost_price,
                 wine_type,
+                grape_variety,
+                region,
+                country,
+                classification,
+                alcohol_content,
+                description,
+                notes,
                 min_quantity,
                 updated_at
             FROM {table_name}
