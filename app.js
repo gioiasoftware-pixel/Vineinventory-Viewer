@@ -169,13 +169,25 @@ async function loadData() {
     
     // Debug: verifica struttura dati ricevuti
     if (data.rows && data.rows.length > 0) {
-        console.log('[LOAD_DATA] Prima riga dati ricevuti:', {
-            name: data.rows[0].name,
-            winery: data.rows[0].winery,
-            supplier: data.rows[0].supplier,
-            vintage: data.rows[0].vintage,
-            keys: Object.keys(data.rows[0])
+        const firstRow = data.rows[0];
+        console.log('[LOAD_DATA] ⚠️ Prima riga dati ricevuti dal backend:', {
+            name: firstRow.name,
+            winery: firstRow.winery,
+            'winery type': typeof firstRow.winery,
+            supplier: firstRow.supplier,
+            'supplier type': typeof firstRow.supplier,
+            vintage: firstRow.vintage,
+            'vintage type': typeof firstRow.vintage,
+            'TUTTE LE CHIAVI': Object.keys(firstRow)
         });
+        
+        // Verifica se winery è presente o se è undefined/null
+        if (!firstRow.winery || firstRow.winery === '-' || firstRow.winery === 'null') {
+            console.warn('[LOAD_DATA] ⚠️ ATTENZIONE: winery è vuoto/null per la prima riga!');
+        }
+        if (!firstRow.supplier || firstRow.supplier === '-' || firstRow.supplier === 'null') {
+            console.warn('[LOAD_DATA] ⚠️ ATTENZIONE: supplier è vuoto/null per la prima riga!');
+        }
     }
     
     console.log('[LOAD_DATA] Chiamando updateMeta, renderFilters, renderTable...');
