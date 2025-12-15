@@ -113,6 +113,7 @@
                             <th>Fornitore</th>
                             <th>Scorta critica</th>
                             <th>Grafico</th>
+                            <th>Azioni</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
@@ -141,6 +142,108 @@
                 <div id="movements-chart-container">
                     <canvas id="movements-chart"></canvas>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal per editing vino -->
+    <div id="edit-wine-modal" class="modal hidden">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Modifica Vino</h2>
+                <button class="modal-close" id="edit-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-wine-form">
+                    <input type="hidden" id="edit-wine-id">
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Nome</label>
+                            <input type="text" id="edit-name" readonly>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Cantina</label>
+                            <input type="text" id="edit-producer" placeholder="Nome cantina">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Fornitore</label>
+                            <input type="text" id="edit-supplier" placeholder="Nome fornitore">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Annata</label>
+                            <input type="number" id="edit-vintage" min="1800" max="2100" placeholder="Es. 2020">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Quantità <span class="field-note">(usa movimenti)</span></label>
+                            <input type="number" id="edit-quantity" min="0" step="1" placeholder="0" readonly>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Prezzo Vendita (€)</label>
+                            <input type="number" id="edit-selling-price" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Prezzo Costo (€)</label>
+                            <input type="number" id="edit-cost-price" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Tipologia <span class="field-note">(non modificabile)</span></label>
+                            <input type="text" id="edit-wine-type" readonly>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Uvaggio</label>
+                            <input type="text" id="edit-grape-variety" placeholder="Es. Sangiovese, Chardonnay">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Regione</label>
+                            <input type="text" id="edit-region" placeholder="Es. Toscana, Piemonte">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Paese</label>
+                            <input type="text" id="edit-country" placeholder="Es. Italia, Francia">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Classificazione</label>
+                            <input type="text" id="edit-classification" placeholder="Es. DOCG, DOC, IGT">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Gradazione Alcolica (%)</label>
+                            <input type="number" id="edit-alcohol-content" min="0" max="100" step="0.1" placeholder="Es. 13.5">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Scorta Minima <span class="field-note">(non modificabile)</span></label>
+                            <input type="number" id="edit-min-quantity" min="0" step="1" placeholder="0" readonly>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label>Descrizione</label>
+                            <textarea id="edit-description" rows="3" placeholder="Descrizione del vino"></textarea>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label>Note</label>
+                            <textarea id="edit-notes" rows="3" placeholder="Note aggiuntive"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" id="edit-cancel-btn">Annulla</button>
+                        <button type="submit" class="btn-primary" id="edit-save-btn">Salva Modifiche</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

@@ -139,6 +139,7 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
         # Recupera tutti i vini con tutti i campi disponibili
         wines_query = f"""
             SELECT 
+                id,
                 name,
                 producer,
                 supplier,
@@ -193,6 +194,7 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
                 supplier_normalized = "-"
             
             rows.append({
+                "id": wine['id'],  # ID necessario per editing
                 "name": wine['name'] or "-",
                 "winery": winery_normalized,
                 "supplier": supplier_normalized,
@@ -208,6 +210,7 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
                 "alcohol_content": float(wine['alcohol_content']) if wine.get('alcohol_content') else None,
                 "description": wine.get('description'),
                 "notes": wine.get('notes'),
+                "min_quantity": wine.get('min_quantity'),
                 "critical": wine['quantity'] is not None and wine['min_quantity'] is not None and wine['quantity'] <= wine['min_quantity']
             })
         

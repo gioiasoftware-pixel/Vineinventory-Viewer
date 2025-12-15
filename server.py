@@ -7,6 +7,7 @@ import sys
 import json
 import asyncio
 import logging
+import aiohttp
 from urllib.parse import urlparse, parse_qs
 from logging_config import setup_colored_logging
 
@@ -68,6 +69,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # Endpoint API per generazione viewer
         if parsed_path.path == '/api/generate':
             self.handle_generate_endpoint()
+            return
+        
+        # Endpoint API per aggiornare campo vino
+        if parsed_path.path == '/api/inventory/update-field':
+            self.handle_update_field_endpoint()
             return
         
         self.send_error(404, "Not found")
@@ -514,6 +520,98 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             writer.writerow(csv_row)
         
         return output.getvalue()
+    
+    def handle_update_field_endpoint(self):
+        """Gestisci endpoint POST /api/inventory/update-field"""
+        try:
+            # Leggi body JSON
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_error(400, "Body vuoto")
+                return
+            
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            
+            token = data.get('token')
+            wine_id = data.get('wine_id')
+            field = data.get('field')
+            value = data.get('value')
+            
+            if not all([token, wine_id, field, value is not None]):
+                self.send_error(400, "Parametri mancanti: token, wine_id, field, value richiesti")
+                return
+            
+            logger.info(f"[UPDATE_FIELD] Richiesta update campo: wine_id={wine_id}, field={field}, value={value}")
+            
+            # Valida token
+            from viewer_db import validate_viewer_token
+            token_data = validate_viewer_token(token)
+            if not token_data:
+                logger.warning(f"[UPDATE_FIELD] Token JWT non valido o scaduto")
+                self.send_response(401)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"detail": "Token scaduto o non valido"}).encode('utf-8'))
+                return
+            
+            telegram_id = token_data["telegram_id"]
+            business_name = token_data["business_name"]
+            
+            logger.info(
+                f"[UPDATE_FIELD] Update richiesto per wine_id={wine_id}, field={field}, "
+                f"telegram_id={telegram_id}, business_name={business_name}"
+            )
+            
+            # Chiama processor API
+            processor_url = os.getenv('PROCESSOR_URL', 'https://gioia-processor-production.up.railway.app')
+            update_url = f"{processor_url}/admin/update-wine-field"
+            
+            async def call_processor():
+                async with aiohttp.ClientSession() as session:
+                    form_data = aiohttp.FormData()
+                    form_data.add_field('telegram_id', str(telegram_id))
+                    form_data.add_field('business_name', business_name)
+                    form_data.add_field('wine_id', str(wine_id))
+                    form_data.add_field('field', field)
+                    form_data.add_field('value', str(value) if value is not None else '')
+                    
+                    async with session.post(update_url, data=form_data) as resp:
+                        if resp.status != 200:
+                            error_text = await resp.text()
+                            logger.error(f"[UPDATE_FIELD] Processor API error {resp.status}: {error_text}")
+                            raise Exception(f"Processor API error {resp.status}: {error_text}")
+                        return await resp.json()
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(call_processor())
+                
+                logger.info(f"[UPDATE_FIELD] Campo aggiornato con successo: {result}")
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode('utf-8'))
+            except Exception as e:
+                logger.error(f"[UPDATE_FIELD] Errore chiamata processor: {e}", exc_info=True)
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"detail": f"Errore interno: {str(e)}"}).encode('utf-8'))
+            finally:
+                loop.close()
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"[UPDATE_FIELD] Errore parsing JSON: {e}")
+            self.send_error(400, "JSON non valido")
+        except Exception as e:
+            logger.error(f"[UPDATE_FIELD] Errore generico: {e}", exc_info=True)
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"detail": f"Errore interno: {str(e)}"}).encode('utf-8'))
     
     def log_message(self, format, *args):
         """Override per logging più pulito"""

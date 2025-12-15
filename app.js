@@ -370,7 +370,7 @@ function renderTable() {
     
     if (filteredData.length === 0) {
         console.log('[RENDER_TABLE] Nessun dato, mostro empty state');
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Nessun risultato trovato</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Nessun risultato trovato</td></tr>';
         return;
     }
     
@@ -444,9 +444,14 @@ function renderTable() {
                     </svg>
                 </button>
             </td>
+            <td class="actions-cell">
+                <button class="edit-btn" data-wine-id="${row.id}" onclick="event.stopPropagation(); openEditModal(${row.id});" title="Modifica vino">
+                    ✏️ Modifica
+                </button>
+            </td>
         </tr>
         <tr class="wine-details-row" data-wine-id="${wineId}" style="display: none;">
-            <td colspan="7" class="wine-details-cell">
+            <td colspan="8" class="wine-details-cell">
                 <div class="wine-details-content">
                     <h3>Dettagli Vino: ${wineName}</h3>
                     <div class="wine-details-grid">
@@ -932,5 +937,265 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Load data
     loadData();
+    
+    // Setup edit modal
+    const editModal = document.getElementById('edit-wine-modal');
+    const editCloseBtn = document.getElementById('edit-modal-close');
+    const editCancelBtn = document.getElementById('edit-cancel-btn');
+    const editForm = document.getElementById('edit-wine-form');
+    
+    if (editCloseBtn) {
+        editCloseBtn.addEventListener('click', closeEditModal);
+    }
+    
+    if (editCancelBtn) {
+        editCancelBtn.addEventListener('click', closeEditModal);
+    }
+    
+    if (editModal) {
+        editModal.addEventListener('click', (e) => {
+            if (e.target === editModal) {
+                closeEditModal();
+            }
+        });
+    }
+    
+    if (editForm) {
+        editForm.addEventListener('submit', saveWineChanges);
+    }
+    
+    // Chiudi con ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && editModal && !editModal.classList.contains('hidden')) {
+            closeEditModal();
+        }
+    });
 });
+
+// ===== FUNZIONI EDITING VINO =====
+
+// Trova vino per ID nei dati caricati
+function findWineById(wineId) {
+    return allData.rows.find(wine => wine.id === wineId);
+}
+
+// Apri modal editing con dati vino
+async function openEditModal(wineId) {
+    const wine = findWineById(wineId);
+    
+    if (!wine) {
+        showNotification('Vino non trovato', 'error');
+        return;
+    }
+    
+    // Popola form con dati vino
+    document.getElementById('edit-wine-id').value = wineId;
+    document.getElementById('edit-name').value = wine.name || '';
+    document.getElementById('edit-producer').value = wine.winery && wine.winery !== '-' ? wine.winery : '';
+    document.getElementById('edit-supplier').value = wine.supplier && wine.supplier !== '-' ? wine.supplier : '';
+    document.getElementById('edit-vintage').value = wine.vintage || '';
+    document.getElementById('edit-quantity').value = wine.qty || 0;
+    document.getElementById('edit-selling-price').value = wine.price || 0;
+    document.getElementById('edit-cost-price').value = wine.cost_price || '';
+    document.getElementById('edit-wine-type').value = wine.type || '';
+    document.getElementById('edit-grape-variety').value = wine.grape_variety || '';
+    document.getElementById('edit-region').value = wine.region || '';
+    document.getElementById('edit-country').value = wine.country || '';
+    document.getElementById('edit-classification').value = wine.classification || '';
+    document.getElementById('edit-alcohol-content').value = wine.alcohol_content || '';
+    document.getElementById('edit-description').value = wine.description || '';
+    document.getElementById('edit-notes').value = wine.notes || '';
+    document.getElementById('edit-min-quantity').value = wine.min_quantity || '';
+    
+    // Mostra modal
+    document.getElementById('edit-wine-modal').classList.remove('hidden');
+}
+
+// Chiudi modal editing
+function closeEditModal() {
+    document.getElementById('edit-wine-modal').classList.add('hidden');
+    document.getElementById('edit-wine-form').reset();
+}
+
+// Salva modifiche vino
+async function saveWineChanges(e) {
+    e.preventDefault();
+    
+    const token = getTokenFromURL();
+    if (!token) {
+        showNotification('Token non valido', 'error');
+        return;
+    }
+    
+    const wineId = parseInt(document.getElementById('edit-wine-id').value);
+    if (!wineId) {
+        showNotification('ID vino non valido', 'error');
+        return;
+    }
+    
+    // Raccogli tutti i campi modificati
+    const fields = {
+        producer: document.getElementById('edit-producer').value.trim(),
+        supplier: document.getElementById('edit-supplier').value.trim(),
+        vintage: document.getElementById('edit-vintage').value.trim(),
+        quantity: document.getElementById('edit-quantity').value.trim(),
+        selling_price: document.getElementById('edit-selling-price').value.trim(),
+        cost_price: document.getElementById('edit-cost-price').value.trim(),
+        wine_type: document.getElementById('edit-wine-type').value.trim(),
+        grape_variety: document.getElementById('edit-grape-variety').value.trim(),
+        region: document.getElementById('edit-region').value.trim(),
+        country: document.getElementById('edit-country').value.trim(),
+        classification: document.getElementById('edit-classification').value.trim(),
+        alcohol_content: document.getElementById('edit-alcohol-content').value.trim(),
+        description: document.getElementById('edit-description').value.trim(),
+        notes: document.getElementById('edit-notes').value.trim(),
+        min_quantity: document.getElementById('edit-min-quantity').value.trim()
+    };
+    
+    // Mostra loading
+    const submitBtn = document.getElementById('edit-save-btn');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Salvataggio...';
+    
+    try {
+        // Invia modifiche campo per campo
+        const updates = [];
+        for (const [field, value] of Object.entries(fields)) {
+            // Mappa field name dal form al nome campo database
+            const fieldMapping = {
+                'producer': 'producer',
+                'supplier': 'supplier',
+                'vintage': 'vintage',
+                'quantity': 'quantity',
+                'selling_price': 'selling_price',
+                'cost_price': 'cost_price',
+                'wine_type': 'wine_type',
+                'grape_variety': 'grape_variety',
+                'region': 'region',
+                'country': 'country',
+                'classification': 'classification',
+                'alcohol_content': 'alcohol_content',
+                'description': 'description',
+                'notes': 'notes',
+                'min_quantity': 'min_quantity'
+            };
+            
+            const dbField = fieldMapping[field];
+            if (!dbField) {
+                console.warn(`Campo sconosciuto: ${field}`);
+                continue;
+            }
+            
+            // Campi supportati dall'endpoint processor:
+            // producer, supplier, vintage, grape_variety, classification,
+            // selling_price, cost_price, alcohol_content, description, notes
+            // NOTA: quantity e wine_type NON sono supportati dall'endpoint attuale
+            
+            if (field === 'quantity') {
+                // Quantity dovrebbe essere gestita tramite movimenti, non update diretto
+                console.warn('Campo quantity non supportato tramite update-wine-field. Usa movimenti per modificare quantità.');
+                showNotification('Nota: La quantità deve essere modificata tramite movimenti (consumi/rifornimenti)', 'error');
+                continue;
+            }
+            
+            if (field === 'wine_type') {
+                // Wine_type non è supportato dall'endpoint attuale
+                console.warn('Campo wine_type non supportato dall\'endpoint update-wine-field');
+                continue;
+            }
+            
+            if (field === 'min_quantity') {
+                // Min_quantity non è supportato dall'endpoint attuale
+                console.warn('Campo min_quantity non supportato dall\'endpoint update-wine-field');
+                continue;
+            }
+            
+            // Skip campi vuoti per alcuni campi numerici obbligatori
+            if (field === 'selling_price' || field === 'vintage') {
+                // Campi numerici - invia solo se non vuoto
+                if (value !== '' && value !== null) {
+                    updates.push(updateWineField(token, wineId, dbField, value));
+                }
+            } else {
+                // Campi opzionali - invia anche se vuoto per pulire campo
+                updates.push(updateWineField(token, wineId, dbField, value || null));
+            }
+        }
+        
+        if (updates.length === 0) {
+            showNotification('Nessuna modifica da salvare', 'error');
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            return;
+        }
+        
+        await Promise.all(updates);
+        
+        // Ricarica dati
+        await loadData();
+        
+        // Chiudi modal
+        closeEditModal();
+        
+        // Mostra notifica successo
+        showNotification('Vino aggiornato con successo!', 'success');
+        
+    } catch (error) {
+        console.error('Errore salvataggio:', error);
+        showNotification('Errore durante il salvataggio: ' + (error.message || 'Errore sconosciuto'), 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+}
+
+// Chiamata API per aggiornare campo vino
+async function updateWineField(token, wineId, field, value) {
+    const baseUrl = CONFIG.apiBase || window.location.origin;
+    const url = `${baseUrl}/api/inventory/update-field`;
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            token: token,
+            wine_id: wineId,
+            field: field,
+            value: value
+        })
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status}` }));
+        throw new Error(errorData.detail || 'Errore aggiornamento campo');
+    }
+    
+    return await response.json();
+}
+
+// Mostra notifica temporanea
+function showNotification(message, type = 'success') {
+    // Rimuovi notifiche esistenti
+    const existing = document.querySelector('.notification');
+    if (existing) {
+        existing.remove();
+    }
+    
+    // Crea notifica
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Rimuovi dopo 3 secondi
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => {
+            notification.remove();
+        }, 300);
+    }, 3000);
+}
 
