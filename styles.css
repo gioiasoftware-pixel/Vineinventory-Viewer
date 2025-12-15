@@ -732,29 +732,33 @@ body {
 }
 
 .edit-btn {
-    padding: 0.5rem 1rem;
-    background: transparent;
-    color: var(--color-granaccia);
-    border: 5px solid var(--color-granaccia);
+    padding: 0.5rem 1rem !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #9a182e !important;
+    border: 5px solid #9a182e !important;
     border-radius: 4px;
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
     transition: all 0.2s;
     font-family: 'Inter', sans-serif;
+    box-sizing: border-box;
 }
 
 .edit-btn:hover {
-    background: rgba(154, 24, 46, 0.05);
-    border-color: #7a1425;
-    color: #7a1425;
+    background: rgba(154, 24, 46, 0.05) !important;
+    background-color: rgba(154, 24, 46, 0.05) !important;
+    border-color: #7a1425 !important;
+    color: #7a1425 !important;
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(154, 24, 46, 0.15);
 }
 
 .edit-btn:active {
     transform: translateY(0);
-    background: rgba(154, 24, 46, 0.1);
+    background: rgba(154, 24, 46, 0.1) !important;
+    background-color: rgba(154, 24, 46, 0.1) !important;
 }
 
 /* Notifiche */
