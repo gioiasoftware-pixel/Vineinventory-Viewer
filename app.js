@@ -446,7 +446,7 @@ function renderTable() {
             </td>
             <td class="actions-cell">
                 <button class="edit-btn" data-wine-id="${row.id}" onclick="event.stopPropagation(); openEditModal(${row.id});" title="Modifica vino">
-                    ✏️ Modifica
+                    Modifica
                 </button>
             </td>
         </tr>

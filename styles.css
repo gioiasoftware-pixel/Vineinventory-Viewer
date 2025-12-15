@@ -733,9 +733,9 @@ body {
 
 .edit-btn {
     padding: 0.5rem 1rem;
-    background: var(--color-granaccia);
-    color: var(--color-white);
-    border: none;
+    background: transparent;
+    color: var(--color-granaccia);
+    border: 5px solid var(--color-granaccia);
     border-radius: 4px;
     cursor: pointer;
     font-size: 13px;
@@ -745,13 +745,16 @@ body {
 }
 
 .edit-btn:hover {
-    background: #7a1425;
+    background: rgba(154, 24, 46, 0.05);
+    border-color: #7a1425;
+    color: #7a1425;
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(154, 24, 46, 0.3);
+    box-shadow: 0 2px 8px rgba(154, 24, 46, 0.15);
 }
 
 .edit-btn:active {
     transform: translateY(0);
+    background: rgba(154, 24, 46, 0.1);
 }
 
 /* Notifiche */
