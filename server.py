@@ -7,7 +7,6 @@ import sys
 import json
 import asyncio
 import logging
-import aiohttp
 from urllib.parse import urlparse, parse_qs
 from logging_config import setup_colored_logging
 
@@ -563,30 +562,22 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 f"telegram_id={telegram_id}, business_name={business_name}"
             )
             
-            # Chiama processor API
-            processor_url = os.getenv('PROCESSOR_URL', 'https://gioia-processor-production.up.railway.app')
-            update_url = f"{processor_url}/admin/update-wine-field"
+            # Aggiorna direttamente nel database (senza chiamare processor)
+            from viewer_db import update_wine_field
             
-            async def call_processor():
-                async with aiohttp.ClientSession() as session:
-                    form_data = aiohttp.FormData()
-                    form_data.add_field('telegram_id', str(telegram_id))
-                    form_data.add_field('business_name', business_name)
-                    form_data.add_field('wine_id', str(wine_id))
-                    form_data.add_field('field', field)
-                    form_data.add_field('value', str(value) if value is not None else '')
-                    
-                    async with session.post(update_url, data=form_data) as resp:
-                        if resp.status != 200:
-                            error_text = await resp.text()
-                            logger.error(f"[UPDATE_FIELD] Processor API error {resp.status}: {error_text}")
-                            raise Exception(f"Processor API error {resp.status}: {error_text}")
-                        return await resp.json()
+            async def update_directly():
+                return await update_wine_field(
+                    telegram_id=telegram_id,
+                    business_name=business_name,
+                    wine_id=wine_id,
+                    field=field,
+                    value=str(value) if value is not None else ''
+                )
             
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                result = loop.run_until_complete(call_processor())
+                result = loop.run_until_complete(update_directly())
                 
                 logger.info(f"[UPDATE_FIELD] Campo aggiornato con successo: {result}")
                 
@@ -594,12 +585,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps(result).encode('utf-8'))
+            except ValueError as e:
+                # Errore di validazione (campo non supportato, valore non valido, etc.)
+                error_msg = str(e)
+                logger.warning(f"[UPDATE_FIELD] Errore validazione: {error_msg}")
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"detail": error_msg}).encode('utf-8'))
             except Exception as e:
-                logger.error(f"[UPDATE_FIELD] Errore chiamata processor: {e}", exc_info=True)
+                error_msg = str(e)
+                logger.error(f"[UPDATE_FIELD] Errore aggiornamento database: {error_msg}", exc_info=True)
                 self.send_response(500)
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps({"detail": f"Errore interno: {str(e)}"}).encode('utf-8'))
+                self.wfile.write(json.dumps({"detail": f"Errore durante l'aggiornamento: {error_msg}"}).encode('utf-8'))
             finally:
                 loop.close()
                 

@@ -366,3 +366,140 @@ async def get_wine_movements(telegram_id: int, business_name: str, wine_name: st
         if conn:
             await conn.close()
 
+
+async def update_wine_field(
+    telegram_id: int,
+    business_name: str,
+    wine_id: int,
+    field: str,
+    value: str
+) -> Dict[str, Any]:
+    """
+    Aggiorna un singolo campo per un vino dell'inventario direttamente nel database.
+    
+    Args:
+        telegram_id: Telegram ID dell'utente
+        business_name: Nome del business
+        wine_id: ID del vino da aggiornare
+        field: Nome del campo da aggiornare
+        value: Nuovo valore (come stringa, verrà convertito in base al campo)
+        
+    Returns:
+        Dict con risultato aggiornamento
+        
+    Raises:
+        ValueError: Se campo non supportato o valore non valido
+        Exception: Se vino non trovato o errore database
+    """
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL non configurata")
+    
+    # Campi supportati (stesso set del processor)
+    allowed_fields = {
+        'producer': 'producer',
+        'supplier': 'supplier',
+        'vintage': 'vintage',
+        'grape_variety': 'grape_variety',
+        'classification': 'classification',
+        'selling_price': 'selling_price',
+        'cost_price': 'cost_price',
+        'alcohol_content': 'alcohol_content',
+        'description': 'description',
+        'notes': 'notes',
+    }
+    
+    if field not in allowed_fields:
+        raise ValueError(
+            f"Campo non consentito: {field}. "
+            f"Campi supportati: {', '.join(allowed_fields.keys())}"
+        )
+    
+    # Normalizza tipi per alcuni campi (stessa logica del processor)
+    def cast_value(f: str, v: str):
+        if f == 'vintage':
+            try:
+                parsed = int(v)
+                if parsed < 1800 or parsed > 2100:
+                    raise ValueError(f"Anno non valido: {parsed}")
+                return parsed
+            except (ValueError, TypeError):
+                raise ValueError(f"Anno non valido per {f}: '{v}'")
+        if f in ('selling_price', 'cost_price', 'alcohol_content'):
+            try:
+                parsed = float(str(v).replace(',', '.'))
+                if f == 'alcohol_content' and (parsed < 0 or parsed > 100):
+                    raise ValueError(f"Gradazione alcolica non valida: {parsed}%")
+                if f in ('selling_price', 'cost_price') and parsed < 0:
+                    raise ValueError(f"Prezzo non può essere negativo: {parsed}")
+                return parsed
+            except (ValueError, TypeError):
+                raise ValueError(f"Numero non valido per {f}: '{v}'")
+        # Per stringhe, rimuovi spazi eccessivi
+        return str(v).strip() if v else None
+    
+    column = allowed_fields[field]
+    new_value = cast_value(field, value)
+    
+    conn = None
+    try:
+        # Connetti al database
+        conn = await asyncpg.connect(DATABASE_URL)
+        
+        # Verifica che utente esista
+        user_query = "SELECT id FROM users WHERE telegram_id = $1"
+        user_row = await conn.fetchrow(user_query, telegram_id)
+        
+        if not user_row:
+            raise ValueError(f"Utente con telegram_id {telegram_id} non trovato")
+        
+        user_id = user_row['id']
+        
+        # Nome tabella inventario
+        table_name = f'"{telegram_id}/{business_name} INVENTARIO"'
+        
+        # Verifica che il vino esista
+        check_query = f"""
+            SELECT id FROM {table_name}
+            WHERE id = $1 AND user_id = $2
+        """
+        wine_check = await conn.fetchrow(check_query, wine_id, user_id)
+        
+        if not wine_check:
+            raise ValueError(f"Vino con id {wine_id} non trovato")
+        
+        # Aggiorna campo
+        update_query = f"""
+            UPDATE {table_name}
+            SET {column} = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2 AND user_id = $3
+            RETURNING id, {column}
+        """
+        
+        updated_row = await conn.fetchrow(update_query, new_value, wine_id, user_id)
+        
+        if not updated_row:
+            raise ValueError("Vino non trovato dopo aggiornamento")
+        
+        logger.info(
+            f"[VIEWER_DB] Campo aggiornato: {field} = {new_value} per wine_id={wine_id}, "
+            f"telegram_id={telegram_id}, business_name={business_name}"
+        )
+        
+        return {
+            "status": "success",
+            "wine_id": wine_id,
+            "field": field,
+            "value": new_value,
+            "message": f"Campo {field} aggiornato con successo"
+        }
+        
+    except Exception as e:
+        logger.error(
+            f"[VIEWER_DB] Errore aggiornamento campo: {e}",
+            exc_info=True
+        )
+        raise
+    finally:
+        if conn:
+            await conn.close()
+
