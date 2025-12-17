@@ -211,7 +211,8 @@ async def get_inventory_snapshot(telegram_id: int, business_name: str) -> Dict[s
                 "description": wine.get('description'),
                 "notes": wine.get('notes'),
                 "min_quantity": wine.get('min_quantity'),
-                "critical": wine['quantity'] is not None and wine['min_quantity'] is not None and wine['quantity'] <= wine['min_quantity']
+                "critical": wine['quantity']
+                 is not None and wine['min_quantity'] is not None and wine['quantity'] <= wine['min_quantity']
             })
         
         # Calcola facets (aggregazioni per filtri)

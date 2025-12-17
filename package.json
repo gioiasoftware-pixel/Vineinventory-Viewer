@@ -1,0 +1,12 @@
+{
+  "name": "gioia-chart-exporter",
+  "version": "1.0.0",
+  "description": "Script per esportare il grafico Balance Stream Chart come JPG",
+  "main": "export_chart.js",
+  "scripts": {
+    "export": "node export_chart.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0"
+  }
+}
