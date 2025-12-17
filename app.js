@@ -781,26 +781,291 @@ async function showMovementsChart(wineName) {
             return;
         }
         
-        // Prepara dati per grafico
-        const labels = [];
-        const consumiData = [];
-        const rifornimentiData = [];
-        const quantitaData = [];
+        // Flow/Balance Chart con asse X continuo e finestra retrospettiva
         
-        movements.forEach(mov => {
-            const date = new Date(mov.date);
-            labels.push(date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }));
-            
+        // Helper functions
+        function toDate(x) {
+            return x instanceof Date ? x : new Date(x);
+        }
+        
+        function startOfDay(d) {
+            const x = new Date(d);
+            x.setHours(0, 0, 0, 0);
+            return x;
+        }
+        
+        function startOfHour(d) {
+            const x = new Date(d);
+            x.setMinutes(0, 0, 0);
+            return x;
+        }
+        
+        function addDays(d, n) {
+            const x = new Date(d);
+            x.setDate(x.getDate() + n);
+            return x;
+        }
+        
+        function addHours(d, n) {
+            const x = new Date(d);
+            x.setHours(x.getHours() + n);
+            return x;
+        }
+        
+        function clampNonNegative(n) {
+            return Number.isFinite(n) ? Math.max(0, n) : 0;
+        }
+        
+        /**
+         * Rolling windows (non "questa settimana" calendario, ma "ultimi N giorni/ore").
+         * - day    = ultime 24 ore
+         * - week   = ultimi 7 giorni
+         * - month  = ultimi 30 giorni
+         * - quarter= ultimi 90 giorni
+         * - year   = ultimi 365 giorni
+         */
+        function computeRollingRange(now, preset) {
+            const to = now;
+            switch (preset) {
+                case "day":
+                    return { from: addHours(to, -24), to };
+                case "week":
+                    return { from: addDays(to, -7), to };
+                case "month":
+                    return { from: addDays(to, -30), to };
+                case "quarter":
+                    return { from: addDays(to, -90), to };
+                case "year":
+                    return { from: addDays(to, -365), to };
+                default:
+                    return { from: addDays(to, -7), to };
+            }
+        }
+        
+        function bucketStart(d, granularity) {
+            return granularity === "day" ? startOfDay(d) : startOfHour(d);
+        }
+        
+        function nextBucket(d, granularity) {
+            return granularity === "day" ? addDays(d, 1) : addHours(d, 1);
+        }
+        
+        function generateBuckets(from, to, granularity) {
+            const buckets = [];
+            let cur = bucketStart(from, granularity);
+            while (cur <= to) {
+                buckets.push(new Date(cur));
+                cur = nextBucket(cur, granularity);
+            }
+            return buckets;
+        }
+        
+        // Converti movimenti in formato WineMovement
+        const wineMovements = movements.map(mov => {
+            const at = toDate(mov.date);
+            let delta = 0;
             if (mov.type === 'consumo') {
-                consumiData.push(Math.abs(mov.quantity_change));
-                rifornimentiData.push(null);
+                delta = -Math.abs(mov.quantity_change || 0);
             } else {
-                consumiData.push(null);
-                rifornimentiData.push(mov.quantity_change);
+                delta = Math.abs(mov.quantity_change || 0);
+            }
+            return { at, delta, quantity_after: mov.quantity_after };
+        }).sort((a, b) => a.at.getTime() - b.at.getTime());
+        
+        // Calcola openingStock (stock all'inizio della finestra)
+        // Ricostruisci lo stock all'inizio della finestra guardando i movimenti precedenti
+        let openingStock = 0;
+        if (movements.length > 0) {
+            // Ordina tutti i movimenti per data
+            const allMovements = movements.map(m => ({
+                date: toDate(m.date),
+                type: m.type,
+                quantity_change: m.quantity_change || 0,
+                quantity_before: m.quantity_before,
+                quantity_after: m.quantity_after
+            })).sort((a, b) => a.date.getTime() - b.date.getTime());
+            
+            // Trova il primo movimento nella finestra
+            const range = computeRollingRange(new Date(), "week");
+            const firstInRange = allMovements.find(m => m.date >= range.from);
+            
+            if (firstInRange && firstInRange.quantity_before !== null && firstInRange.quantity_before !== undefined) {
+                openingStock = firstInRange.quantity_before;
+            } else if (allMovements.length > 0) {
+                // Se non c'è quantity_before, ricostruisci andando indietro
+                // Trova il primo movimento prima della finestra
+                const beforeRange = allMovements.filter(m => m.date < range.from);
+                if (beforeRange.length > 0) {
+                    const lastBefore = beforeRange[beforeRange.length - 1];
+                    openingStock = lastBefore.quantity_after || 0;
+                } else if (firstInRange) {
+                    // Se il primo movimento è nella finestra, usa quantity_after - delta
+                    openingStock = (firstInRange.quantity_after || 0) - (firstInRange.type === 'consumo' ? -Math.abs(firstInRange.quantity_change) : firstInRange.quantity_change);
+                }
+            }
+        }
+        
+        // Preset periodo (default: week)
+        // Labels UI coerenti col significato "ultimo ..."
+        let currentPreset = "week";
+        const periodPresets = [
+            { id: "day", label: "Ultimo giorno" },
+            { id: "week", label: "Ultima settimana" },
+            { id: "month", label: "Ultimo mese" },
+            { id: "quarter", label: "Ultimo trimestre" },
+            { id: "year", label: "Ultimo anno" }
+        ];
+        
+        // Funzione per costruire i dati del grafico (allineata alla specifica buildWineFlowChartData)
+        function buildChartData(preset = "week", opts = {}) {
+            const now = opts.now || new Date();
+            const presetValue = preset || opts.preset || "week";
+            
+            // Granularità: day -> hour, week+ -> day (default sensato come nella spec)
+            const granularity = opts.granularity || (presetValue === "day" ? "hour" : "day");
+            
+            const { from, to } = computeRollingRange(now, presetValue);
+            
+            // Genera bucket continui (nessun buco)
+            const buckets = generateBuckets(from, to, granularity);
+            
+            // Filtra movimenti nella finestra (inclusivo da from a to)
+            const mv = wineMovements
+                .map(m => ({ at: toDate(m.at), delta: m.delta }))
+                .filter(m => m.at >= from && m.at <= to)
+                .sort((a, b) => a.at.getTime() - b.at.getTime());
+            
+            // Aggrega delta per bucketStart
+            const agg = new Map();
+            for (const m of mv) {
+                const b = bucketStart(m.at, granularity).getTime();
+                const cur = agg.get(b) || { inflow: 0, outflow: 0 };
+                if (m.delta >= 0) {
+                    cur.inflow += m.delta;
+                } else {
+                    cur.outflow += Math.abs(m.delta);
+                }
+                agg.set(b, cur);
             }
             
-            quantitaData.push(mov.quantity_after);
-        });
+            // Costruisci points con 0 dove non c'è interazione
+            const points = [];
+            const stockStart = opts.openingStock !== undefined ? opts.openingStock : openingStock;
+            let stock = stockStart;
+            
+            for (let i = 0; i < buckets.length; i++) {
+                const t = buckets[i];
+                const key = bucketStart(t, granularity).getTime();
+                const a = agg.get(key) || { inflow: 0, outflow: 0 };
+                
+                const inflow = clampNonNegative(a.inflow);
+                const outflow = clampNonNegative(a.outflow);
+                
+                // Stock cumulativo: stock(t+1) = stock(t) + inflow - outflow
+                stock = stock + inflow - outflow;
+                
+                points.push({ t, inflow, outflow, stock });
+            }
+            
+            // Dominio Y FLOW: basato sui delta nella finestra attiva, centrato su 0
+            let maxIn = 0;
+            let maxOut = 0;
+            for (const p of points) {
+                maxIn = Math.max(maxIn, p.inflow);
+                maxOut = Math.max(maxOut, p.outflow);
+            }
+            
+            const padMul = opts.flowPaddingMultiplier !== undefined ? opts.flowPaddingMultiplier : 1.2;
+            const minAbs = opts.minAbsFlowDomain !== undefined ? opts.minAbsFlowDomain : 1;
+            
+            const peak = Math.max(maxIn, maxOut);
+            const padded = Math.max(minAbs, peak * padMul);
+            const flowYDomain = [-padded, +padded];
+            
+            // Dominio Y STOCK (asse destro): min/max stock nella finestra con padding leggero
+            let sMin = Number.POSITIVE_INFINITY;
+            let sMax = Number.NEGATIVE_INFINITY;
+            for (const p of points) {
+                sMin = Math.min(sMin, p.stock);
+                sMax = Math.max(sMax, p.stock);
+            }
+            if (!Number.isFinite(sMin) || !Number.isFinite(sMax)) {
+                sMin = 0;
+                sMax = 1;
+            }
+            const sSpan = Math.max(1, sMax - sMin);
+            const sPad = sSpan * 0.05; // 5% padding come nella spec
+            const stockYDomain = [sMin - sPad, sMax + sPad];
+            
+            return { points, flowYDomain, stockYDomain, range: { from, to }, granularity };
+        }
+        
+        // Costruisci dati iniziali
+        let chartData = buildChartData(currentPreset);
+        
+        // Prepara dati per Chart.js (usa Date objects per asse X time)
+        const labels = chartData.points.map(p => p.t);
+        
+        const consumiStreamData = chartData.points.map(p => -p.outflow);
+        const rifornimentiStreamData = chartData.points.map(p => p.inflow);
+        const stockData = chartData.points.map(p => p.stock);
+        const yDomain = chartData.flowYDomain;
+        
+        // Aggiungi selettore periodo al modal
+        const modalBody = document.querySelector('#movements-modal .modal-body');
+        if (modalBody && !document.getElementById('period-selector')) {
+            const selector = document.createElement('div');
+            selector.id = 'period-selector';
+            selector.style.cssText = 'margin-bottom: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;';
+            
+            periodPresets.forEach(preset => {
+                const btn = document.createElement('button');
+                btn.textContent = preset.label;
+                btn.dataset.preset = preset.id;
+                btn.style.cssText = `
+                    padding: 8px 16px;
+                    border: 2px solid #4682B4;
+                    background: ${currentPreset === preset.id ? '#4682B4' : 'white'};
+                    color: ${currentPreset === preset.id ? 'white' : '#4682B4'};
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 600;
+                    transition: all 0.2s;
+                `;
+                btn.addEventListener('click', () => {
+                    currentPreset = preset.id;
+                    chartData = buildChartData(currentPreset, { 
+                        openingStock: openingStock,
+                        flowPaddingMultiplier: 1.2,
+                        minAbsFlowDomain: 1
+                    });
+                    
+                    // Aggiorna dati (usa Date objects per asse X time)
+                    movementsChart.data.labels = chartData.points.map(p => p.t);
+                    movementsChart.data.datasets[0].data = chartData.points.map(p => -p.outflow);
+                    movementsChart.data.datasets[1].data = chartData.points.map(p => p.inflow);
+                    movementsChart.data.datasets[2].data = chartData.points.map(p => p.stock);
+                    
+                    movementsChart.options.scales.y.min = chartData.flowYDomain[0];
+                    movementsChart.options.scales.y.max = chartData.flowYDomain[1];
+                    movementsChart.options.scales.y1.min = chartData.stockYDomain[0];
+                    movementsChart.options.scales.y1.max = chartData.stockYDomain[1];
+                    
+                    movementsChart.update();
+                    
+                    // Aggiorna stili bottoni
+                    selector.querySelectorAll('button').forEach(b => {
+                        const isActive = b.dataset.preset === currentPreset;
+                        b.style.background = isActive ? '#4682B4' : 'white';
+                        b.style.color = isActive ? 'white' : '#4682B4';
+                    });
+                });
+                selector.appendChild(btn);
+            });
+            
+            modalBody.insertBefore(selector, chartContainer);
+        }
         
         // Crea grafico
         chartContainer.innerHTML = '<canvas id="movements-chart"></canvas>';
@@ -818,61 +1083,199 @@ async function showMovementsChart(wineName) {
                 datasets: [
                     {
                         label: 'Consumi',
-                        data: consumiData,
-                        borderColor: '#9a182e',
-                        backgroundColor: 'rgba(154, 24, 46, 0.1)',
+                        data: consumiStreamData,
+                        borderColor: '#87CEEB',
+                        backgroundColor: 'rgba(135, 206, 235, 0.5)',
                         tension: 0.4,
-                        fill: true
+                        fill: true,
+                        stack: 'movements',
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        borderWidth: 0
                     },
                     {
                         label: 'Rifornimenti',
-                        data: rifornimentiData,
-                        borderColor: '#28a745',
-                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        data: rifornimentiStreamData,
+                        borderColor: '#4682B4',
+                        backgroundColor: 'rgba(70, 130, 180, 0.5)',
                         tension: 0.4,
-                        fill: true
+                        fill: true,
+                        stack: 'movements',
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        borderWidth: 0
                     },
                     {
-                        label: 'Quantità Stock',
-                        data: quantitaData,
-                        borderColor: '#007bff',
-                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                        tension: 0.4,
+                        label: 'Stock',
+                        data: stockData,
+                        borderColor: '#4682B4',
+                        backgroundColor: 'transparent',
+                        pointRadius: 0,
                         fill: false,
-                        yAxisID: 'y1'
+                        yAxisID: 'y1',
+                        borderWidth: 1.5,
+                        borderDash: [5, 5],
+                        tension: 0.4
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'top'
+                        position: 'top',
+                        align: 'center',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15,
+                            font: {
+                                size: 12
+                            },
+                            boxWidth: 12,
+                            boxHeight: 12,
+                        }
                     },
                     title: {
                         display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 12
+                        },
+                        callbacks: {
+                            label: function(context) {
+                                const datasetLabel = context.dataset.label || '';
+                                const index = context.dataIndex;
+                                const point = chartData.points[index];
+                                
+                                if (!point) return '';
+                                
+                                if (datasetLabel === 'Stock') {
+                                    return `Stock: ${Math.round(context.parsed.y)} bottiglie`;
+                                } else if (datasetLabel === 'Consumi') {
+                                    return `Consumi: ${Math.abs(Math.round(context.parsed.y))} bottiglie`;
+                                } else if (datasetLabel === 'Rifornimenti') {
+                                    return `Rifornimenti: ${Math.round(context.parsed.y)} bottiglie`;
+                                }
+                                return '';
+                            },
+                            afterBody: function(context) {
+                                const index = context[0].dataIndex;
+                                const point = chartData.points[index];
+                                if (!point) return [];
+                                
+                                const dateLabel = chartData.granularity === "hour" 
+                                    ? point.t.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                    : point.t.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                
+                                return [
+                                    `Data: ${dateLabel}`,
+                                    `Stock: ${Math.round(point.stock)} bottiglie`,
+                                    `Rifornimenti: ${Math.round(point.inflow)} bottiglie`,
+                                    `Consumi: ${Math.round(point.outflow)} bottiglie`
+                                ];
+                            }
+                        }
                     }
                 },
                 scales: {
                     y: {
-                        beginAtZero: true,
+                        stacked: true,
+                        beginAtZero: false,
+                        min: yDomain[0],
+                        max: yDomain[1],
                         title: {
+                            display: false
+                        },
+                        ticks: {
                             display: true,
-                            text: 'Bottiglie (Consumi/Rifornimenti)'
+                            font: {
+                                size: 11
+                            },
+                            callback: function(value) {
+                                // Mostra valori assoluti per leggibilità
+                                return Math.abs(Math.round(value));
+                            }
+                        },
+                        grid: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
                         }
                     },
                     y1: {
                         type: 'linear',
                         display: true,
                         position: 'right',
+                        min: chartData.stockYDomain[0],
+                        max: chartData.stockYDomain[1],
                         title: {
                             display: true,
-                            text: 'Stock'
+                            text: 'Stock (bottiglie)',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                size: 11
+                            }
                         },
                         grid: {
                             drawOnChartArea: false
+                        }
+                    },
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: chartData.granularity === "hour" ? 'hour' : 'day',
+                            displayFormats: {
+                                hour: 'dd/MM HH:mm',
+                                day: 'dd/MM/yyyy'
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                size: 11
+                            },
+                            maxRotation: 45,
+                            minRotation: 45
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: chartData.granularity === "hour" ? 'hour' : 'day',
+                            displayFormats: {
+                                hour: 'dd/MM HH:mm',
+                                day: 'dd/MM/yyyy'
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                size: 11
+                            },
+                            maxRotation: 45,
+                            minRotation: 45
+                        },
+                        grid: {
+                            display: false
                         }
                     }
                 }
